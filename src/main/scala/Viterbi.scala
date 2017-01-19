@@ -6,23 +6,23 @@
   *     - Added dynamic table for memoisation
   *     - Converted equations to log functions to prevent underflow
   *
-  *
   */
+
 import scala.collection.Map
 import Types._
 
 object Viterbi {
-  var seenProbMap : Map[(State, Int), ProbabilityPath] = Map()
+  var seenProbMap : Map[(State, Target), ProbabilityPath] = Map()
 
   def viterbi(observations: List[Double],
               states: List[State],
               start: State => Probability,
               transition: ProbabilityMap,
-              emissions: Map[(String, Int), Double]): ProbabilityPath = {
+              emissions: Map[(State, Target), Double]): ProbabilityPath = {
 
     def probability(p: ProbabilityPath) = p._1
 
-    def mostLikelyPathFrom(state: State, time: Int): ProbabilityPath = {
+    def mostLikelyPathFrom(state: State, time: Target): ProbabilityPath = {
       if (seenProbMap.contains((state, time))) {
         return seenProbMap((state, time))
       }
@@ -34,20 +34,20 @@ object Viterbi {
           // (probability of observing the initial observation from the initial state)
           val pPath = ( Math.log10(start(state)) + emission, List(state) )
           seenProbMap += ( (state, time) -> pPath )
-          return pPath
+          pPath
         case _ =>
           val (prob, path) = states map { (state) =>
             val (prob, path) = mostLikelyPathFrom(state, time - 1)
             val prevState = path.head
             // (probability of the previous state) times
             // (probability of moving from previous state to this state)
-            ( prob + Math.log10(transition(prevState, state)), path )
+            ( prob + Math.log10(transition(time, prevState, state)), path )
           } maxBy probability
           // (probability of observing the current observation from this state) times
           // (probability of the maximizing state)
           val pPath = (emission + prob, state :: path)
           seenProbMap += ( (state, time) -> pPath )
-          return pPath
+          pPath
       }
     }
 
