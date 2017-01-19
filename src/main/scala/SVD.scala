@@ -5,7 +5,7 @@
 import scala.collection.Map
 import scala.collection.mutable.ListBuffer
 import breeze.linalg.DenseMatrix
-import org.apache.commons.math3.distribution.{NormalDistribution}
+import org.apache.commons.math3.distribution.NormalDistribution
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.mllib.linalg._
 import org.apache.spark.mllib.linalg.distributed.RowMatrix
@@ -157,7 +157,7 @@ object SVD {
       if ( r == 18 ) {
         println("=== Running Viterbi..")
         t0 = System.nanoTime()
-        println(Viterbi.viterbi(obs, states, start_probability, transition_probability_1, emission_probability))
+        println(Viterbi.viterbi(obs, states, start_probability, transition_probability_2, emission_probability))
         t1 = System.nanoTime()
         println("=== Done Viterbi")
         println("=== Elapsed time: " + (t1 - t0)/1000000000.0 + "seconds")
@@ -173,32 +173,3 @@ object SVD {
     sc.parallelize(vectors)
   }
 }
-
-//    println("=== RowMatrix: ")
-//    println(rm.numRows())
-//    println(rm.numCols())
-//    println(rm.rows.collect().foreach(println))
-
-//    println(r.rows)
-//    println(r.cols)
-//    println(r)
-
-//    println("=== DenseMatrix: ")
-//    println(arr) // Note this print statement will not work since arr is RDD and on separate machines
-//    println(dm)
-//    println(dm.numRows)
-
-//    println("U: ")
-//    println(U.numRows())
-//    println(U.numCols())
-//    println(U.rows.collect().foreach(println))
-
-//    println("d: ")
-//    println(d)
-//    println(d.size)
-
-//    println("=== V: ")
-//    println(V)
-//    V.toArray.foreach(println)
-//    println(V.numRows)
-//    println(V.numCols)

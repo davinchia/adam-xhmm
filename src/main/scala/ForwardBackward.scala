@@ -141,22 +141,22 @@ object ForwardBackward {
     }
 
     // Table 2
-    var f : Double = 0.0
+    var f: Double = 0.0
 
     for (i <- 0 to ds.length - 1) {
-      f = Math.pow(Math.E, (-BigDecimal(ds(i))/D).toDouble)  // BigDecimal to fix underflow issues
+      f = Math.pow(Math.E, (-BigDecimal(ds(i)) / D).toDouble) // BigDecimal to fix underflow issues
 
-      transitions += ( (i+1, "Diploid", "Diploid")     -> (1 - 2*p) )
-      transitions += ( (i+1, "Diploid", "Duplication") -> p )
-      transitions += ( (i+1, "Diploid", "Deletion")    -> p )
+      transitions += ((i + 1, "Diploid", "Diploid") -> (1 - 2 * p))
+      transitions += ((i + 1, "Diploid", "Duplication") -> p)
+      transitions += ((i + 1, "Diploid", "Deletion") -> p)
 
-      transitions += ( (i+1, "Deletion", "Diploid")     -> (f*q + (1-f)*(1-2*p)) )
-      transitions += ( (i+1, "Deletion", "Duplication") -> ((1-f) * p) )
-      transitions += ( (i+1, "Deletion", "Deletion")    -> (f*(1-q) + (1-f)*p) )
+      transitions += ((i + 1, "Deletion", "Diploid") -> (f * q + (1 - f) * (1 - 2 * p)))
+      transitions += ((i + 1, "Deletion", "Duplication") -> ((1 - f) * p))
+      transitions += ((i + 1, "Deletion", "Deletion") -> (f * (1 - q) + (1 - f) * p))
 
-      transitions += ( (i+1, "Duplication", "Diploid")     -> (f*q + (1-f)*(1-2*p)) )
-      transitions += ( (i+1, "Duplication", "Duplication") -> (f*(1-q) + (1-f)*p) )
-      transitions += ( (i+1, "Duplication", "Deletion")    -> ((1-f) * p) )
+      transitions += ((i + 1, "Duplication", "Diploid") -> (f * q + (1 - f) * (1 - 2 * p)))
+      transitions += ((i + 1, "Duplication", "Duplication") -> (f * (1 - q) + (1 - f) * p))
+      transitions += ((i + 1, "Duplication", "Deletion") -> ((1 - f) * p))
     }
 
     val normDistDip = new NormalDistribution(0.0, 1.0)
@@ -174,4 +174,5 @@ object ForwardBackward {
       emission_probability += (("Deletion", a) -> normDistDel.density(cur))
     }
     emissions = emission_probability
+  }
 }
