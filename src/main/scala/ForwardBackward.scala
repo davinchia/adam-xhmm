@@ -100,6 +100,11 @@ object ForwardBackward {
     -10 * Math.log10(a.toDouble)
   }
 
+  def reset_cache(): Unit = {
+    fwdCache.clear()
+    bckCache.clear()
+  }
+
   def main(args: Array[String]): Unit = {
 //    var states = List("Diploid", "Duplication", "Deletion")
 //    var start = {

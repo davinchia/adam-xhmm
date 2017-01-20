@@ -11,6 +11,7 @@ import org.apache.spark.mllib.linalg.distributed.RowMatrix
 import org.apache.spark.rdd.RDD
 
 import Model._
+import Viterbi._
 
 object SVD {
   def main(args: Array[String]) {
@@ -89,27 +90,25 @@ object SVD {
 
     // Turn each row in normR into a z-score
     val normZ = normR
-    for ( a <- 0 until normR.rows-1 ) {
+    for ( a <- 0 until normR.rows ) {
       val row = normZ(a, ::); val cols = normZ.cols
 
       var total = 0.0
-      for ( b <- 0 until cols-1 ) {
+      for ( b <- 0 until cols ) {
         total += row(b)
       }
       val mean = total / cols
 
       var std = 0.0
-      for ( b <- 0 until cols-1 ) {
+      for ( b <- 0 until cols ) {
         std += Math.pow(row(b) - mean, 2)
       }
       std = Math.sqrt(std / (cols-1))
 
-      for ( b <- 0 until cols-1 ) {
+      for ( b <- 0 until cols ) {
         normZ(a,b) = (normZ(a,b) - mean) / std
       }
     }
-
-//    println(normZ)
 
     // Initialise our model
     Model.states = List("Diploid", "Duplication", "Deletion")
@@ -120,27 +119,39 @@ object SVD {
     }
 
     // Generate obs for each row
-    for ( r <- 0 until normZ.rows-1 ) {
-      Viterbi.seenProbMap = Map()
+    for ( r <- 0 until normZ.rows ) {
       val listBuffer = new ListBuffer[Double]()
-      for ( a <- 0 until normZ.cols-1 ) {
+      for ( a <- 0 until normZ.cols ) {
         listBuffer += normZ(r, a)
       }
 
       // Note, this will currently fail if there are no obs in the row.
       Model.obs = listBuffer.toList // Set obs to row from Z matrix
 
-      if (r == 18 || r == 14) {
+//      if (r == 18 || r == 14) {
+
         Model.calc_probabilities_for_sample() // Calculate transition and emission probabilities
-        println("Running Viterbi..")
+//        println("Running Viterbi..")
         t0 = System.nanoTime()
-        println(Viterbi.viterbi(obs, states, start, transitions, emissions))
+        val path = viterbi(obs, states, start, transitions, emissions)
+//        println(phred_state_from_t1_to_t2(3, 10, "Duplication"))
         t1 = System.nanoTime()
-        println("Done Viterbi")
-        println("Elapsed time: " + (t1 - t0)/1000000000.0 + "seconds")
-      }
+//        println("Done Viterbi")
+//        println("Elapsed time: " + (t1 - t0)/1000000000.0 + "seconds")
+
+        print("r: " + r + " ")
+//        print(path)
+        for (a <- path) {
+          if (a.equals("Deletion")) print(0 + " ")
+          if (a.equals("Diploid")) print(1 + " ")
+          if (a.equals("Duplication")) print(2 + " ")
+//          println(a)
+        }
+        println()
+//      }
     }
   }
+
   def matrix_To_RDD(m: DenseMatrix[Double], sc: SparkContext): RDD[Vector] = {
     val columns = m.toArray.grouped(m.rows)
     val rows = columns.toSeq.transpose // Skip this if you want a column-major RDD.

@@ -8,6 +8,7 @@
 import Types._
 import org.apache.commons.math3.distribution.NormalDistribution
 import collection.mutable
+import ForwardBackward.reset_cache
 
 object Model {
 
@@ -98,8 +99,9 @@ object Model {
   }
 
   def clear_model() : Unit = {
-    transitions = mutable.Map()
-    emissions = mutable.Map[(String, Int), Double]()
+    reset_cache()
+    transitions.clear()
+    emissions.clear()
   }
 
 }

@@ -1,60 +1,34 @@
 /**
   * Created by davinchia on 1/15/17.
   *
-  *   Scala Implementation of Viterbi's Algorithm Adapted from:
-  *   https://gist.github.com/dansondergaard/4144770
-  *     - Added dynamic table for memoisation
-  *     - Converted equations to log functions to prevent underflow
-  *
   */
 
-import scala.collection.Map
+import scala.collection.{Map, mutable}
 import Types._
+import ForwardBackward._
 
 object Viterbi {
-  var seenProbMap : Map[(State, Target), ProbabilityPath] = Map()
 
+  /**
+    * This implementation of Viterbi only calculates the most probable state path till the end.
+    */
   def viterbi(observations: List[Double],
               states: List[State],
               start: State => Probability,
               transition: ProbabilityMap,
-              emissions: Map[(State, Target), Double]): ProbabilityPath = {
+              emissions: Map[(State, Target), Double]): List[State] = {
 
     def probability(p: ProbabilityPath) = p._1
 
-    def mostLikelyPathFrom(state: State, time: Target): ProbabilityPath = {
-      if (seenProbMap.contains((state, time))) {
-        return seenProbMap((state, time))
+    def mostLikelyPath() : List[String] = {
+      var path : mutable.ListBuffer[State] = mutable.ListBuffer[State]()
+      for (t <- 0 to 264) {
+        path += (states map { (s) => (Math.log(forwardE(t, s)) + Math.log(backwardE(t+1, s)), s)
+        } maxBy (_._1))._2
       }
-
-      val emission = Math.log10(emissions((state, time)))
-      time match {
-        case 0 =>
-          // (probability that were in the initial state) times
-          // (probability of observing the initial observation from the initial state)
-          val pPath = ( Math.log10(start(state)) + emission, List(state) )
-          seenProbMap += ( (state, time) -> pPath )
-          pPath
-        case _ =>
-          val (prob, path) = states map { (state) =>
-            val (prob, path) = mostLikelyPathFrom(state, time - 1)
-            val prevState = path.head
-            // (probability of the previous state) times
-            // (probability of moving from previous state to this state)
-            ( prob + Math.log10(transition(time, prevState, state)), path )
-          } maxBy probability
-          // (probability of observing the current observation from this state) times
-          // (probability of the maximizing state)
-          val pPath = (emission + prob, state :: path)
-          seenProbMap += ( (state, time) -> pPath )
-          pPath
-      }
+      path.toList
     }
 
-    val (prob, path) = states map { (state) =>
-      mostLikelyPathFrom(state, observations.size - 1)
-    } maxBy probability
-
-    (prob, path.reverse)
+    mostLikelyPath()
   }
 }
