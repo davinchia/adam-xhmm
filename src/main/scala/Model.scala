@@ -10,13 +10,13 @@ import org.apache.commons.math3.distribution.NormalDistribution
 import collection.mutable
 
 object Model {
-  val fwdCache: mutable.Map[(Target, State), Double] = mutable.HashMap[(Target, State), Double]()
-  val bckCache: mutable.Map[(Target, State), Double] = mutable.HashMap[(Target, State), Double]()
+  val fwdCache: mutable.Map[(Target, State), BigDecimal] = mutable.HashMap[(Target, State), BigDecimal]()
+  val bckCache: mutable.Map[(Target, State), BigDecimal] = mutable.HashMap[(Target, State), BigDecimal]()
 
   // The following are default values used to calculate certain probabilities.
-  val p : Double = 0.00000001
-  val t : Int = 6
-  val q : Double = 1.0 / t
+  val p : BigDecimal = 0.00000001
+  val t : BigDecimal = 6
+  val q : BigDecimal = 1.0 / t
   val m : Int = 3
   val D : BigDecimal = BigDecimal(70000)  // BigDecimal to avoid underflow later on.
   val maxPhredScore : Int = 100           // Used to normalise Phred Score
@@ -37,8 +37,8 @@ object Model {
   var states : List[State] = List()
   var obs : List[Double] = List()
   var transitions : ProbabilityMap = mutable.Map()
-  var emissions : mutable.Map[(String, Int), Double] = mutable.Map[(String, Int), Double]()
-  var start : State => Probability = {
+  var emissions : mutable.Map[(String, Int), BigDecimal] = mutable.Map[(String, Int), BigDecimal]()
+  var start : State => BigDecimal = {
     case "Default" => 1.0
   }
 
@@ -60,11 +60,11 @@ object Model {
   }
 
   private def calc_transition_probabilities() : Unit = {
-    var f: Double = 0.0
+    var f: BigDecimal = 0.0
 //    println("Calculating transitions")
 
     for (i <- ds.indices) {
-      f = Math.pow(Math.E, (-BigDecimal(ds(i)) / D).toDouble) // BigDecimal to fix underflow issues
+      f = BigDecimal(Math.pow(Math.E, (-BigDecimal(ds(i)) / D).toDouble)) // BigDecimal to fix underflow issues
 
       transitions += ((i + 1, "Diploid", "Diploid") -> (1 - 2 * p))
       transitions += ((i + 1, "Diploid", "Duplication") -> p)
@@ -86,9 +86,9 @@ object Model {
 //    println("Calculating emissions ")
     for (a <- obs.indices) {
       val cur = obs(a)
-      emissions += (("Diploid", a) -> normDistDip.density(cur))
-      emissions += (("Duplication", a) -> normDistDup.density(cur))
-      emissions += (("Deletion", a) -> normDistDel.density(cur))
+      emissions += (("Diploid", a) -> BigDecimal(normDistDip.density(cur)))
+      emissions += (("Duplication", a) -> BigDecimal(normDistDup.density(cur)))
+      emissions += (("Deletion", a) -> BigDecimal(normDistDel.density(cur)))
     }
 //    println("Done calculating emissions ")
   }

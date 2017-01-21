@@ -8,8 +8,8 @@ object Types {
   type State = String
   type Target = Int
   type Observation = String
-  type Probability = Double
-  type ProbabilityMap = mutable.Map[(Int, State, State), Double]
-  type EmissionMap = mutable.Map[(String, Int), Double]
+  type Probability = BigDecimal
+  type ProbabilityMap = mutable.Map[(Int, State, State), BigDecimal]
+  type EmissionMap = mutable.Map[(String, Int), BigDecimal]
   type ProbabilityPath = (Probability, List[State])
 }

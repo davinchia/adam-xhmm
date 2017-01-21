@@ -129,30 +129,24 @@ object SVD {
 
 //      if (r == 18 || r == 14) {
         Model.calc_probabilities_for_sample() // Calculate transition and emission probabilities
-        println("  Running Viterbi..")
-        t0 = System.nanoTime()
+//        println("  Running Viterbi..")
+//        t0 = System.nanoTime()
         val path = viterbi(obs, states, start, transitions, emissions)
-        t1 = System.nanoTime()
-        println("  Done Viterbi")
-        println("  Elapsed time: " + (t1 - t0)/1000000000.0 + "seconds")
+//        t1 = System.nanoTime()
+//        println("  Done Viterbi")
+//        println("  Elapsed time: " + (t1 - t0)/1000000000.0 + "seconds")
 
         val (beginIdx, endIdx, state) = search_for_non_diploid(path)
-      println(beginIdx)
-      println(endIdx)
         if (beginIdx != -1) {
           var exclude = if (state == "Deletion") "Duplication" else "Deletion"
 
           val someScore = some_score(beginIdx, endIdx, exclude)
-          println(someScore)
-          println("Path: ")
-          ugly_print_path(path)
           if (someScore >= minSomeScore) {
-            println("Num: " + r + " CNV: " + state + " begin: " + beginIdx+1 + " end: " + endIdx+1
+            println("Num: " + r + " CNV: " + state + " begin: " + (beginIdx+1) + " end: " + (endIdx+1)
               + " exact score: " + exact_score(beginIdx, endIdx, state) + " some score: " + someScore)
           }
         }
       println()
       }
-//    }
   }
 }

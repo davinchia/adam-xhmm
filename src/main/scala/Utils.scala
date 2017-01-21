@@ -7,7 +7,7 @@ import org.apache.spark.SparkContext
 import org.apache.spark.mllib.linalg.{DenseVector, Vector}
 import org.apache.spark.rdd.RDD
 
-import Model.maxPhredScore
+import Model._
 import Types._
 
 object Utils {
@@ -72,6 +72,21 @@ object Utils {
       if (a == "Deletion") print(0 + " ")
       if (a == "Diploid") print(1 + " ")
       if (a == "Duplication") print(2 + " ")
+    }
+  }
+
+  def print_emiss(): Unit = {
+    for (t <- 0 to 264) {
+      println("t: " + t + " " + emissions("Deletion", t) + " " + emissions("Diploid", t) + " " + emissions("Duplication", t))
+    }
+  }
+
+  def print_trans(): Unit = {
+    for (t <- 1 to 264) {
+      println("t: " + t)
+      println("state: " + "Del" + " " + transitions(t, "Deletion", "Deletion") + " " + transitions(t, "Deletion", "Diploid") + " " + transitions(t, "Deletion", "Duplication"))
+      println("state: " + "Dip" + " " + transitions(t, "Diploid", "Deletion") + " " + transitions(t, "Diploid", "Diploid") + " " + transitions(t, "Diploid", "Duplication"))
+      println("state: " + "Dup" + " " + transitions(t, "Duplication", "Deletion") + " " + transitions(t, "Duplication", "Diploid") + " " + transitions(t, "Duplication", "Duplication"))
     }
   }
 
