@@ -20,6 +20,7 @@ object Model {
   val m : Int = 3
   val D : BigDecimal = BigDecimal(70000)  // BigDecimal to avoid underflow later on.
   val maxPhredScore : Int = 100           // Used to normalise Phred Score
+  val minSomeScore : Double = 30
 
   // These are used to calculate Emission probabilities.
   val normDistDip : NormalDistribution = new NormalDistribution(0.0, 1.0)
@@ -41,8 +42,8 @@ object Model {
     case "Default" => 1.0
   }
 
-  def calc_d_values() : Unit = {
-    println("Calculating d values")
+  private def calc_d_values() : Unit = {
+//    println("Calculating d values")
     val data = str_targets.split("  ") map { (a) => {
         a.split(":").drop(1)
       }
@@ -55,12 +56,12 @@ object Model {
       diff += (data(i + 1)(0).toInt - data(i)(1).toInt - 1) // Subtract additional 1 because we only want the distance between genes
     }
     ds = diff.toList
-    println("Done Calculating d values")
+//    println("Done Calculating d values")
   }
 
-  def calc_transition_probabilities() : Unit = {
+  private def calc_transition_probabilities() : Unit = {
     var f: Double = 0.0
-    println("Calculating transitions")
+//    println("Calculating transitions")
 
     for (i <- ds.indices) {
       f = Math.pow(Math.E, (-BigDecimal(ds(i)) / D).toDouble) // BigDecimal to fix underflow issues
@@ -78,18 +79,25 @@ object Model {
       transitions += ((i + 1, "Duplication", "Deletion") -> ((1 - f) * p))
     }
 
-    println("Done calculating transitions")
+//    println("Done calculating transitions")
   }
 
-  def calc_emission_probabilities() : Unit = {
-    println("Calculating emissions ")
+  private def calc_emission_probabilities() : Unit = {
+//    println("Calculating emissions ")
     for (a <- obs.indices) {
       val cur = obs(a)
       emissions += (("Diploid", a) -> normDistDip.density(cur))
       emissions += (("Duplication", a) -> normDistDup.density(cur))
       emissions += (("Deletion", a) -> normDistDel.density(cur))
     }
-    println("Done calculating emissions ")
+//    println("Done calculating emissions ")
+  }
+
+  private def clear_model() : Unit = {
+    fwdCache.clear()
+    bckCache.clear()
+    transitions.clear()
+    emissions.clear()
   }
 
   def calc_probabilities_for_sample() : Unit = {
@@ -98,13 +106,6 @@ object Model {
     calc_transition_probabilities()
     calc_emission_probabilities()
     println("Done calculating probabilites")
-  }
-
-  def clear_model() : Unit = {
-    fwdCache.clear()
-    bckCache.clear()
-    transitions.clear()
-    emissions.clear()
   }
 
   def main(args: Array[String]): Unit = {

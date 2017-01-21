@@ -7,10 +7,10 @@ import breeze.linalg.DenseMatrix
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.mllib.linalg._
 import org.apache.spark.mllib.linalg.distributed.RowMatrix
-import org.apache.spark.rdd.RDD
 
 import Model._
 import XHMM._
+import Utils._
 
 object SVD {
   def main(args: Array[String]) {
@@ -127,54 +127,32 @@ object SVD {
       // Note, this will currently fail if there are no obs in the row.
       Model.obs = listBuffer.toList // Set obs to row from Z matrix
 
-      if (r == 18 || r == 14) {
-        println(Model.obs)
+//      if (r == 18 || r == 14) {
         Model.calc_probabilities_for_sample() // Calculate transition and emission probabilities
-//        println("Running Viterbi..")
+        println("  Running Viterbi..")
         t0 = System.nanoTime()
         val path = viterbi(obs, states, start, transitions, emissions)
-//        println(phred_state_from_t1_to_t2(3, 10, "Duplication"))
-//        t1 = System.nanoTime()
-//        println("Done Viterbi")
-//        println("Elapsed time: " + (t1 - t0)/1000000000.0 + "seconds")
-      }
-    }
-  }
+        t1 = System.nanoTime()
+        println("  Done Viterbi")
+        println("  Elapsed time: " + (t1 - t0)/1000000000.0 + "seconds")
 
-  def matrix_To_RDD(m: DenseMatrix[Double], sc: SparkContext): RDD[Vector] = {
-    val columns = m.toArray.grouped(m.rows)
-    val rows = columns.toSeq.transpose // Skip this if you want a column-major RDD.
-    val vectors = rows.map(row => new DenseVector(row.toArray))
-    sc.parallelize(vectors)
+        val (beginIdx, endIdx, state) = search_for_non_diploid(path)
+      println(beginIdx)
+      println(endIdx)
+        if (beginIdx != -1) {
+          var exclude = if (state == "Deletion") "Duplication" else "Deletion"
+
+          val someScore = some_score(beginIdx, endIdx, exclude)
+          println(someScore)
+          println("Path: ")
+          ugly_print_path(path)
+          if (someScore >= minSomeScore) {
+            println("Num: " + r + " CNV: " + state + " begin: " + beginIdx+1 + " end: " + endIdx+1
+              + " exact score: " + exact_score(beginIdx, endIdx, state) + " some score: " + someScore)
+          }
+        }
+      println()
+      }
+//    }
   }
 }
-
-//      // Map: (State, Time) => Probability
-//      var emission_probability : Map[(String, Int), Double] = Map()
-//      // Generate emission probabilities for each sample
-//      for ( a <- 0 to obs.length-1 ) {
-//        val cur = obs(a)
-//        emission_probability += ( ("Diploid", a) -> normDistDip.density(cur) )
-//        emission_probability += ( ("Duplication", a) -> normDistDup.density(cur) )
-//        emission_probability += ( ("Deletion", a) -> normDistDel.density(cur) )
-//      }
-
-
-// Table 1
-//    val transition_probability_2 : (String, String) => Double = {
-//      case ("Diploid", "Diploid")     => 1 - 2*p
-//      case ("Diploid", "Duplication") => p
-//      case ("Diploid", "Deletion")    => p
-//
-//      case ("Duplication", "Duplication") => 1 - q
-//      case ("Duplication", "Diploid")     => q
-//      case ("Duplication", "Deletion")    => 0.0
-//
-//      case ("Deletion", "Deletion")    => 1 - q
-//      case ("Deletion", "Diploid")     => q
-//      case ("Deletion", "Duplication") => 0.0
-//    }
-
-//    val normDistDip = new NormalDistribution(0.0, 1.0)
-//    val normDistDel = new NormalDistribution(-m, 1.0)
-//    val normDistDup = new NormalDistribution(m, 1.0)

@@ -5,6 +5,7 @@
 import collection.mutable
 import Types._
 import Model._
+import Utils._
 
 object XHMM {
   private def forwardE(t: Target, j: State): Double = {
@@ -43,7 +44,7 @@ object XHMM {
   }
 
   private def gamma(t: Target): BigDecimal = {
-    BigDecimal(states map { s => forwardE(t, s) * backwardE(t+1, s)} sum)
+    states map { s => BigDecimal(forwardE(t, s)) * BigDecimal(backwardE(t+1, s))} sum
   }
 
   def prob_state_from_t1_to_t2_numerator(t1: Target, t2: Target, state: State) : BigDecimal = {
@@ -65,15 +66,12 @@ object XHMM {
   }
 
   def calc_total_likelihood(): BigDecimal = {
-    states map { (s) => { BigDecimal(forwardE(obs.length-1, s)) * BigDecimal(backwardE(obs.length, s)) } } sum
-  }
+    println(forwardE(obs.length-1, "Deletion") + " " + backwardE(obs.length, "Deletion"))
+    println(forwardE(obs.length-1, "Diploid") + " " + backwardE(obs.length, "Diploid"))
+    println(forwardE(obs.length-1, "Duplication") + " " + backwardE(obs.length, "Duplication"))
 
-  def calc_phred_score(score: Double): Double = {
-    val scr = Math.round(-10 * Math.log10(score))
-    if (scr < maxPhredScore) scr
-    else maxPhredScore
+    states map { (s) => { BigDecimal(forwardE(obs.length-1, s)) } } sum
   }
-
 
   /**
     * The following are higher level XHMM calls. These access the lower probability calls above.
@@ -115,14 +113,20 @@ object XHMM {
       states foreach { s => forwardE(t,s) }
     }
 
+//    for (t <- t1 to t2) {
+//      println(forwardE(t, "Deletion") + " " + forwardE(t, "Diploid") + " " + forwardE(t, "Duplication"))
+//    }
+
     val num : BigDecimal = gamma(t2)
     val subtr : BigDecimal = prob_state_from_t1_to_t2_numerator(t1, t2, "Diploid")
     var total : BigDecimal = calc_total_likelihood()
 
-    println("num: " + num)
     println("subtr: " + subtr)
+    println("numer: " + num)
     println("total: " + total)
-    println("final: " + (total - (num - subtr)) / total)
+    println("after: " + (num - subtr))
+    println(total < num)
+    println("final: " + (total - (num - subtr)))
 
     calc_phred_score(((total - (num - subtr)) / total).toDouble)
   }
