@@ -8,9 +8,10 @@
 import Types._
 import org.apache.commons.math3.distribution.NormalDistribution
 import collection.mutable
-import ForwardBackward.reset_cache
 
 object Model {
+  val fwdCache: mutable.Map[(Target, State), Double] = mutable.HashMap[(Target, State), Double]()
+  val bckCache: mutable.Map[(Target, State), Double] = mutable.HashMap[(Target, State), Double]()
 
   // The following are default values used to calculate certain probabilities.
   val p : Double = 0.00000001
@@ -18,6 +19,7 @@ object Model {
   val q : Double = 1.0 / t
   val m : Int = 3
   val D : BigDecimal = BigDecimal(70000)  // BigDecimal to avoid underflow later on.
+  val maxPhredScore : Int = 100           // Used to normalise Phred Score
 
   // These are used to calculate Emission probabilities.
   val normDistDip : NormalDistribution = new NormalDistribution(0.0, 1.0)
@@ -99,9 +101,14 @@ object Model {
   }
 
   def clear_model() : Unit = {
-    reset_cache()
+    fwdCache.clear()
+    bckCache.clear()
     transitions.clear()
     emissions.clear()
+  }
+
+  def main(args: Array[String]): Unit = {
+    println("Test")
   }
 
 }

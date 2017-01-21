@@ -2,7 +2,6 @@
   * Created by davinchia on 1/13/17.
   */
 
-import scala.collection.Map
 import scala.collection.mutable.ListBuffer
 import breeze.linalg.DenseMatrix
 import org.apache.spark.{SparkConf, SparkContext}
@@ -11,7 +10,7 @@ import org.apache.spark.mllib.linalg.distributed.RowMatrix
 import org.apache.spark.rdd.RDD
 
 import Model._
-import Viterbi._
+import XHMM._
 
 object SVD {
   def main(args: Array[String]) {
@@ -128,27 +127,17 @@ object SVD {
       // Note, this will currently fail if there are no obs in the row.
       Model.obs = listBuffer.toList // Set obs to row from Z matrix
 
-//      if (r == 18 || r == 14) {
-
+      if (r == 18 || r == 14) {
+        println(Model.obs)
         Model.calc_probabilities_for_sample() // Calculate transition and emission probabilities
 //        println("Running Viterbi..")
         t0 = System.nanoTime()
         val path = viterbi(obs, states, start, transitions, emissions)
 //        println(phred_state_from_t1_to_t2(3, 10, "Duplication"))
-        t1 = System.nanoTime()
+//        t1 = System.nanoTime()
 //        println("Done Viterbi")
 //        println("Elapsed time: " + (t1 - t0)/1000000000.0 + "seconds")
-
-        print("r: " + r + " ")
-//        print(path)
-        for (a <- path) {
-          if (a.equals("Deletion")) print(0 + " ")
-          if (a.equals("Diploid")) print(1 + " ")
-          if (a.equals("Duplication")) print(2 + " ")
-//          println(a)
-        }
-        println()
-//      }
+      }
     }
   }
 
