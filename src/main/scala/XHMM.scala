@@ -68,12 +68,8 @@ object XHMM {
     states map { (s) => { BigDecimal(forwardE(obs.length-1, s)) * BigDecimal(backwardE(obs.length, s)) } } sum
   }
 
-  def prob_state_from_t1_to_t2(t1: Target, t2: Target, state: State) : Double = {
-    (prob_state_from_t1_to_t2_numerator(t1, t2, state) / calc_total_likelihood()).toDouble
-  }
-
   def calc_phred_score(score: Double): Double = {
-    val scr = Math.round(-10 * Math.log10((BigDecimal(1) - BigDecimal(score)).toDouble))
+    val scr = Math.round(-10 * Math.log10(score))
     if (scr < maxPhredScore) scr
     else maxPhredScore
   }
@@ -102,11 +98,17 @@ object XHMM {
     mostLikelyPath()
   }
 
-  def phred_state_from_t1_to_t2(t1: Target, t2: Target, state: State) : Double = {
-    calc_phred_score(prob_state_from_t1_to_t2(t1, t2, state))
+  /**
+    * The following are used to calculate quality statistics.
+    */
+
+  def exact_score(t1: Target, t2: Target, state: State) : Double = {
+    val num = prob_state_from_t1_to_t2_numerator(t1, t2, state)
+    val total = calc_total_likelihood()
+    calc_phred_score(((total - num) / total).toDouble)
   }
 
-  def some_quality(t1: Target, t2: Target, exclude: State): Double = {
+  def some_score(t1: Target, t2: Target, exclude: State): Double = {
     for (t <- t1 to t2) {
       states foreach { s => fwdCache -= ((t, s)) }  // clear for recalculation
       emissions((exclude, t)) = 0.0                 // zone out probabilities
@@ -116,14 +118,16 @@ object XHMM {
     val num : BigDecimal = gamma(t2)
     val subtr : BigDecimal = prob_state_from_t1_to_t2_numerator(t1, t2, "Diploid")
     var total : BigDecimal = calc_total_likelihood()
+
+    println("num: " + num)
+    println("subtr: " + subtr)
     println("total: " + total)
+    println("final: " + (total - (num - subtr)) / total)
 
-    println(num - subtr)
-    println(total - (num - subtr))
-
-    ((total - (num - subtr)) / total).toDouble
+    calc_phred_score(((total - (num - subtr)) / total).toDouble)
   }
 
   def main(args: Array[String]): Unit = {
+
   }
 }

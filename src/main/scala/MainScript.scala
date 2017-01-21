@@ -5,6 +5,7 @@
   */
 
 import XHMM._
+import Model._
 
 object MainScript {
   def main(args: Array[String]): Unit = {
@@ -22,12 +23,12 @@ object MainScript {
     Model.calc_probabilities_for_sample() // Calculate transition and emission probabilities
     //    println("Running Viterbi..")
     //    val t0 = System.nanoTime()
-    //    val v = Viterbi.viterbi(obs, states, start, transitions, emissions)
+        val v = viterbi(obs, states, start, transitions, emissions)
     //    println(v)
     //    val t1 = System.nanoTime()
     //    println("Done Viterbi")
     //    println("Elapsed time: " + (t1 - t0)/1000000000.0 + "seconds")
-    println(phred_state_from_t1_to_t2(3, 10, "Duplication"))
-    println("SQ: " + some_quality(3, 10, "Deletion"))
+    println(exact_score(103, 116, "Deletion"))
+    println("SQ: " + some_score(103, 116, "Duplication"))
   }
 }
