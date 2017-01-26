@@ -105,7 +105,7 @@ object Model {
     calc_d_values()
     calc_transition_probabilities()
     calc_emission_probabilities()
-    println("Done calculating probabilites")
+//    println("Done calculating probabilites")
   }
 
   def main(args: Array[String]): Unit = {
