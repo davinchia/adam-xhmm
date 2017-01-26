@@ -146,7 +146,6 @@ object SVD {
               + " exact score: " + exact_score(beginIdx, endIdx, state) + " some score: " + someScore)
           }
         }
-      println()
       }
   }
 }
