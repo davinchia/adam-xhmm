@@ -11,7 +11,6 @@ import Model._
 import Types._
 
 object Utils {
-
   def matrix_To_RDD(m: DenseMatrix[Double], sc: SparkContext): RDD[Vector] = {
     val columns = m.toArray.grouped(m.rows)
     val rows = columns.toSeq.transpose // Skip this if you want a column-major RDD.
