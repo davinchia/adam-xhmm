@@ -12,7 +12,7 @@ import Model._
 import XHMM._
 import Utils._
 
-object SVD {
+object Main {
   def main(args: Array[String]) {
 
     /**
@@ -24,9 +24,10 @@ object SVD {
       .set("spark.driver.memory", "8g")
     val sc = new SparkContext(conf)
 
-    println("Reading file.. ")
+    if (debug) println("Reading file.. ")
     // Input
-    val arr = sc.textFile("file:///home/joey/Desktop/1000 Genomes/run-results/test3/DATA.filtered_centered.RD.txt")
+//    val arr = sc.textFile("file:///home/joey/Desktop/1000 Genomes/run-results/test3/DATA.filtered_centered.RD.txt")
+    val arr = sc.textFile("file:///home/joey/Desktop/1000 Genomes/RUN/DATA.filtered_centered.RD.txt")
     arr.cache() // Make sure Spark saves this to memory, since we are going to do more operations on it
 
     // Assign targets
@@ -34,10 +35,7 @@ object SVD {
 
     // Get rest of samples by targets from matrix; we must use higher-order functions because arr is a RDD
     var data = arr.filter(line => !line.contains("Matrix"))
-
-    // Prepare to transpose Matrix
-    val rows = targets.length
-    val cols = data.count().toInt
+    val rows = targets.length; val cols = data.count().toInt  // Prepare to transpose Matrix
 
     // Remove metadata and convert to Double
     var numericData = data.flatMap(_.split("\\s+")).filter(e => !e.contains("HG")).map(_.toDouble)
@@ -53,46 +51,46 @@ object SVD {
       * Acceptable since this allows us to not calculate the U component.
       */
 
-    println("Turning RDD into DenseMatrix")
-    val rt = new DenseMatrix(rows, cols, numericData.take(dataLength))
+    if (debug) println("Turning RDD into DenseMatrix")
+    val rt = new DenseMatrix(rows, cols, numericData.take(dataLength)); val r = rt.t
     println("Finished turning RDD into DenseMatrix")
-    val r = rt.t
 
     // Turn matrix into RDD to allow us to utilise MLlib SVD on it
-    println("Creating RowMatrix")
+    if (debug) println("Creating RowMatrix")
     val rm: RowMatrix = new RowMatrix(matrix_To_RDD(rt, sc)) // We are feeding in a transpose matrix, so we only need V
     val numSamples = cols
     println("RowMatrix created ")
 
     t1 = System.nanoTime()
-    println("Start SVD")
+    if (debug) println("Start SVD")
     // we do not need u, since SVD is done on the transpose
-    println("rows: " + rm.numRows()); println("cols: " + rm.numCols())
     val svd: SingularValueDecomposition[RowMatrix, Matrix] = rm.computeSVD(Math.min(rm.numRows(), rm.numCols()).toInt, computeU = false)
     println("Done SVD")
-    t2 = System.nanoTime()
-    println("Elapsed time: " + (t2 - t1)/1000000000.0 + " seconds")
-    println("Total Elapsed time: " + (t2 - t0)/1000000000.0 + " seconds")
+    if (debug) {
+      t2 = System.nanoTime()
+      println("Elapsed time: " + (t2 - t1)/1000000000.0 + " seconds")
+      println("Total Elapsed time: " + (t2 - t0)/1000000000.0 + " seconds")
+    }
 
     /**
       * SVD is done in a distributed manner. All operations are done locally, from here onwards.
       */
 
-    println("Starting PCA normalisation")
+    if (debug) println("Starting PCA normalisation")
     t1 = System.nanoTime()
     val d: Vector = svd.s // The singular values are stored in a local dense vector.
     val V: Matrix = svd.V // The V factor is a local dense matrix.
     val dmV : DenseMatrix[Double] = new DenseMatrix(V.numCols, V.numRows, V.toArray) // Transform V to DenseMatrix
 
-    val vals = d.toArray.map( x => x * x / numSamples ) // Transform singular values into eigenvalues
     t3 = System.nanoTime()
     // Calculate total, relative values, and eigenvectors to remove
-    val total = vals.sum
-    val relVar = vals.map( x => x / total )
-    val toRemove = relVar.map( x => x >= 0.7 / numSamples )
-    t4 = System.nanoTime()
-    println("  Time to compute relative values: " + (t4 - t3)/1000000000.0 + " seconds")
-    println("  Number of components to remove: " + toRemove.length)
+    val toRemove = calc_vectors_to_remove(d, numSamples)
+    if (debug) {
+      t4 = System.nanoTime()
+      println("  Time to compute relative values: " + (t4 - t3)/1000000000.0 + " seconds")
+      println("  Number of components to remove: " + toRemove.length)
+    }
+
     // Equation 1
     t3 = System.nanoTime()
     var normR = r
@@ -104,46 +102,31 @@ object SVD {
         normR -= res
       }
     }
-    t4 = System.nanoTime()
-    println("  Time to remove components: " + (t4 - t3)/1000000000.0 + " seconds")
-    t2 = System.nanoTime()
-    println("Done PCA normalisation")
-    println("Elapsed time: " + (t2 - t1)/1000000000.0 + " seconds")
-    println("Total Elapsed time: " + (t2 - t0)/1000000000.0 + " seconds")
+    if (debug) {
+      t4 = System.nanoTime()
+      println("  Time to remove components: " + (t4 - t3)/1000000000.0 + " seconds")
+      t2 = System.nanoTime()
+      println("Done PCA normalisation")
+      println("Elapsed time: " + (t2 - t1)/1000000000.0 + " seconds")
+      println("Total Elapsed time: " + (t2 - t0)/1000000000.0 + " seconds")
+    }
 
 
-    println("Starting Z-score normalisation")
+    if (debug) println("Starting Z-score normalisation")
     // Turn each row in normR into a z-score
     t1 = System.nanoTime()
-    val normZ = normR
-    for ( a <- 0 until normR.rows ) {
-      val row = normZ(a, ::); val cols = normZ.cols
+    val normZ = z_normalise_matrix(normR)
 
-      var total = 0.0
-      for ( b <- 0 until cols ) {
-        total += row(b)
-      }
-      val mean = total / cols
-
-      var std = 0.0
-      for ( b <- 0 until cols ) {
-        std += Math.pow(row(b) - mean, 2)
-      }
-      std = Math.sqrt(std / (cols-1))
-
-      for ( b <- 0 until cols ) {
-        normZ(a,b) = (normZ(a,b) - mean) / std
-      }
+    if (debug) {
+      t2 = System.nanoTime()
+      println("Done Z-score normalisation")
+      println("Elapsed time: " + (t2 - t1)/1000000000.0 + " seconds")
+      println("Total Elapsed time: " + (t2 - t0)/1000000000.0 + " seconds")
     }
-    t2 = System.nanoTime()
-    println("Done Z-score normalisation")
-    println("Elapsed time: " + (t2 - t1)/1000000000.0 + " seconds")
-    println("Total Elapsed time: " + (t2 - t0)/1000000000.0 + " seconds")
 
     // Initialise our model
     initialise_model()
 
-    println("Starting processing for each sample..")
     // Generate obs for each row
     for ( r <- 0 until normZ.rows ) {
       val listBuffer = new ListBuffer[Double]()
@@ -156,15 +139,17 @@ object SVD {
       println("Sample: " + (r+1))
       Model.calc_probabilities_for_sample() // Calculate transition and emission probabilities
 
-      println("  Running Viterbi..")
       t2 = System.nanoTime()
       val path = viterbi(obs, states, start, transitions, emissions)
       t3 = System.nanoTime()
-      println("  Done Viterbi")
-      println("  Elapsed time: " + (t3 - t2)/1000000000.0 + " seconds")
+
+      if (debug) {
+        println("  Done Viterbi")
+        println("  Elapsed time: " + (t3 - t2)/1000000000.0 + " seconds")
+      }
 
       val (beginIdx, endIdx, state) = search_for_non_diploid(path)
-
+      println("  " + beginIdx + ", " + endIdx + ", " + state)
     }
     t1 = System.nanoTime()
     println("Total time taken: " + ((t1 - t0)/1000000000.0) + " seconds")

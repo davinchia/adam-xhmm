@@ -8,8 +8,8 @@
 import Types._
 import XHMM.calculate_Forward_Backward
 import org.apache.commons.math3.distribution.NormalDistribution
-
 import collection.mutable
+import Utils.debug
 
 object Model {
   val fwdCache: mutable.Map[(Target, State), BigDecimal] = mutable.HashMap[(Target, State), BigDecimal]()
@@ -51,7 +51,7 @@ object Model {
 
   // TODO: Handle the differences between chromosomes. Currently results in a hack in line 85.
   private def calc_d_values() : Unit = {
-    println("Calculating d values")
+    if (debug) println("Calculating d values")
     var t0 = System.nanoTime()
     val data = targets map { (a) => {
         a.split(":").drop(1)
@@ -70,14 +70,14 @@ object Model {
     ds = diff.toArray
     var t1 = System.nanoTime()
     println("Done Calculating d values")
-    println("Elapsed time: " + (t1 - t0)/1000000000.0 + "seconds")
+    if (debug) println("Elapsed time: " + (t1 - t0)/1000000000.0 + "seconds")
   }
 
   private def calc_transition_probabilities() : Unit = {
     var f: BigDecimal = 0.0; var target: Int = 0
     var a: BigDecimal = 0.0; var b: BigDecimal = 0.0; var c: BigDecimal = 0.0; var d: BigDecimal = 0.0; var e: BigDecimal = 0.0
     transitions = Array.ofDim[BigDecimal](ds.length+1, 3, 3)
-    println("Calculating transitions")
+    if (debug) println("Calculating transitions")
     var t0 = System.nanoTime()
     for (i <- ds.indices) {
 
@@ -101,11 +101,11 @@ object Model {
     }
     var t1 = System.nanoTime()
     println("Done calculating transitions")
-    println("Elapsed time: " + (t1 - t0)/1000000000.0 + " seconds")
+    if (debug) println("Elapsed time: " + (t1 - t0)/1000000.0 + " milliseconds")
   }
 
   private def calc_emission_probabilities() : Unit = {
-    println("  Calculating emissions ")
+    if (debug) println("  Calculating emissions ")
     var t0 = System.nanoTime()
     for (a <- obs.indices) {
       val cur = obs(a)
@@ -115,7 +115,7 @@ object Model {
     }
     var t1 = System.nanoTime()
     println("  Done calculating emissions ")
-    println("  Elapsed time: " + (t1 - t0)/1000000000.0 + " seconds")
+    if (debug) println("  Elapsed time: " + (t1 - t0)/1000000.0 + " milliseconds")
   }
 
   private def clear_model() : Unit = {

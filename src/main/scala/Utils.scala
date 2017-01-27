@@ -11,11 +11,45 @@ import Model._
 import Types._
 
 object Utils {
+  val debug = false
+
   def matrix_To_RDD(m: DenseMatrix[Double], sc: SparkContext): RDD[Vector] = {
     val columns = m.toArray.grouped(m.rows)
     val rows = columns.toSeq.transpose // Skip this if you want a column-major RDD.
     val vectors = rows.map(row => new DenseVector(row.toArray))
     sc.parallelize(vectors)
+  }
+
+  def calc_vectors_to_remove(d: Vector, numSamples: Int) : Array[Boolean] = {
+    val vals = d.toArray.map( x => x * x / numSamples ) // Transform singular values into eigenvalues
+    // Calculate total, relative values, and eigenvectors to remove
+    val total = vals.sum
+    val relVar = vals.map( x => x / total )
+    relVar.map( x => x >= 0.7 / numSamples )
+  }
+
+  def z_normalise_matrix(normR: DenseMatrix[Double]): DenseMatrix[Double] = {
+    val normZ = normR
+    for ( a <- 0 until normR.rows ) {
+      val row = normZ(a, ::); val cols = normZ.cols
+
+      var total = 0.0
+      for ( b <- 0 until cols ) {
+        total += row(b)
+      }
+      val mean = total / cols
+
+      var std = 0.0
+      for ( b <- 0 until cols ) {
+        std += Math.pow(row(b) - mean, 2)
+      }
+      std = Math.sqrt(std / (cols-1))
+
+      for ( b <- 0 until cols ) {
+        normZ(a,b) = (normZ(a,b) - mean) / std
+      }
+    }
+    normZ
   }
 
   def calc_phred_score(score: Double): Double = {
