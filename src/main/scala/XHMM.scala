@@ -69,7 +69,7 @@ object XHMM {
   /**
     * The following are higher level XHMM calls. These access the lower probability calls above.
     */
-  def viterbi(observations: List[Double],
+  def viterbi(observations: Array[Double],
               states: Array[State],
               start: State => BigDecimal,
               transition: ProbabilityMap,
