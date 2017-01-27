@@ -70,9 +70,10 @@ var targets : Array[String] = "22:16449025-16449223  22:16449225-16449423  22:16
     println("  Elapsed time: " + (t1 - t0)/1000000000.0 + "seconds")
   }
 
-  private def calc_transition_probabilities() : Unit = {
-    var f: BigDecimal = 0.0
-    println("  Calculating transitions")
+  private def calc_transition() : Unit = {
+    var f: BigDecimal = 0.0; var target: Int = 0
+    var a: BigDecimal = 0.0; var b: BigDecimal = 0.0; var c: BigDecimal = 0.0; var d: BigDecimal = 0.0; var e: BigDecimal = 0.0
+    println("Calculating transitions")
     var t0 = System.nanoTime()
     for (i <- ds.indices) {
 
@@ -80,22 +81,23 @@ var targets : Array[String] = "22:16449025-16449223  22:16449225-16449423  22:16
       val power = Math.pow(Math.E, (-BigDecimal(ds(i)) / D).toDouble)
       f = if (power.isInfinity) BigDecimal(1000000000) // BigDecimal to fix underflow issues
           else BigDecimal(power)
+      target = i+1; a = 1 - f; b = 1 - 2*p; c = f*q + a*b; d = a * p; e =f * (1-q) + d
 
-      transitions += ((i + 1, "Diploid", "Diploid") -> (1 - 2 * p))
-      transitions += ((i + 1, "Diploid", "Duplication") -> p)
-      transitions += ((i + 1, "Diploid", "Deletion") -> p)
+      transitions += ((target, "Diploid", "Diploid") -> b)
+      transitions += ((target, "Diploid", "Duplication") -> p)
+      transitions += ((target, "Diploid", "Deletion") -> p)
 
-      transitions += ((i + 1, "Deletion", "Diploid") -> (f * q + (1 - f) * (1 - 2 * p)))
-      transitions += ((i + 1, "Deletion", "Duplication") -> ((1 - f) * p))
-      transitions += ((i + 1, "Deletion", "Deletion") -> (f * (1 - q) + (1 - f) * p))
+      transitions += ((target, "Deletion", "Diploid") -> c)
+      transitions += ((target, "Deletion", "Duplication") -> d)
+      transitions += ((target, "Deletion", "Deletion") -> e)
 
-      transitions += ((i + 1, "Duplication", "Diploid") -> (f * q + (1 - f) * (1 - 2 * p)))
-      transitions += ((i + 1, "Duplication", "Duplication") -> (f * (1 - q) + (1 - f) * p))
-      transitions += ((i + 1, "Duplication", "Deletion") -> ((1 - f) * p))
+      transitions += ((target, "Duplication", "Diploid") -> c)
+      transitions += ((target, "Duplication", "Duplication") -> e)
+      transitions += ((target, "Duplication", "Deletion") -> d)
     }
     var t1 = System.nanoTime()
-    println("  Done calculating transitions")
-    println("  Elapsed time: " + (t1 - t0)/1000000000.0 + "seconds")
+    println("Done calculating transitions")
+    println("Elapsed time: " + (t1 - t0)/1000000000.0 + "seconds")
   }
 
   private def calc_emission_probabilities() : Unit = {
@@ -115,17 +117,19 @@ var targets : Array[String] = "22:16449025-16449223  22:16449225-16449423  22:16
   private def clear_model() : Unit = {
     fwdCache.clear()
     bckCache.clear()
-    transitions.clear()
     emissions.clear()
+  }
+
+  def calc_transition_probabilities() : Unit = {
+    calc_d_values()
+    calc_transition()
   }
 
   def calc_probabilities_for_sample() : Unit = {
     clear_model()
-    calc_d_values()
-    calc_transition_probabilities()
     calc_emission_probabilities()
     calculate_Forward_Backward()
-    println("  Done calculating probabilites")
+    println("  Done calculating probabilites for sample")
   }
 
   def main(args: Array[String]): Unit = {

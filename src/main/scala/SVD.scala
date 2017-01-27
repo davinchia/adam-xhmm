@@ -79,7 +79,6 @@ object SVD {
 
     /**
       * SVD is done in a distributed manner. All operations are done locally, from here onwards.
-      * Do we want to make this distributed?
       */
 
     println("Starting PCA normalisation")
@@ -147,6 +146,7 @@ object SVD {
       case "Duplication" => 0.00000001
       case "Deletion" => 0.00000001
     }
+    calc_transition_probabilities()
 
     println("Starting processing for each sample..")
     // Generate obs for each row
