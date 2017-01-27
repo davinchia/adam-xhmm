@@ -138,15 +138,8 @@ object SVD {
     println("Elapsed time: " + (t2 - t1)/1000000000.0 + "seconds")
     println("Total Elapsed time: " + (t2 - t0)/1000000000.0 + "seconds")
 
-    println("Initialising model..")
     // Initialise our model
-    Model.states = List("Diploid", "Duplication", "Deletion")
-    Model.start = {
-      case "Diploid" => 1.0
-      case "Duplication" => 0.00000001
-      case "Deletion" => 0.00000001
-    }
-    calc_transition_probabilities()
+    initialise_model()
 
     println("Starting processing for each sample..")
     // Generate obs for each row
@@ -159,29 +152,32 @@ object SVD {
       // Note, this will currently fail if there are no obs in the row.
       Model.obs = listBuffer.toList // Set obs to row from Z matrix
       println("Sample: " + (r+1))
-//      if (r == 18 || r == 14) {
-        Model.calc_probabilities_for_sample() // Calculate transition and emission probabilities
+      Model.calc_probabilities_for_sample() // Calculate transition and emission probabilities
 
-        println("  Running Viterbi..")
-        t2 = System.nanoTime()
-        val path = viterbi(obs, states, start, transitions, emissions)
-        t3 = System.nanoTime()
-        println("  Done Viterbi")
-        println("  Elapsed time: " + (t3 - t2)/1000000000.0 + "seconds")
+      println("  Running Viterbi..")
+      t2 = System.nanoTime()
+      val path = viterbi(obs, states, start, transitions, emissions)
+      t3 = System.nanoTime()
+      println("  Done Viterbi")
+      println("  Elapsed time: " + (t3 - t2)/1000000000.0 + "seconds")
 
-        val (beginIdx, endIdx, state) = search_for_non_diploid(path)
-        if (beginIdx != -1) {
-          var exclude = if (state == "Deletion") "Duplication" else "Deletion"
+      val (beginIdx, endIdx, state) = search_for_non_diploid(path)
 
-          val someScore = some_score(beginIdx, endIdx, exclude)
-          if (someScore >= minSomeScore) {
-            println("Num: " + r + " CNV: " + state + " begin: " + (beginIdx+1) + " end: " + (endIdx+1)
-              + " exact score: " + exact_score(beginIdx, endIdx, state) + " some score: " + someScore)
-          }
-        }
-        println("  Total Elapsed time: " + (t2 - t0)/1000000000.0 + "seconds")
-      }
+    }
     t1 = System.nanoTime()
     println("Total time taken: " + ((t1 - t0)/1000000000.0) + "seconds")
   }
 }
+
+//      if (r == 18 || r == 14) {
+
+//        if (beginIdx != -1) {
+//          var exclude = if (state == 1) 2 else 1
+//
+//          val someScore = some_score(beginIdx, endIdx, exclude)
+//          if (someScore >= minSomeScore) {
+//            println("Num: " + r + " CNV: " + state + " begin: " + (beginIdx+1) + " end: " + (endIdx+1)
+//              + " exact score: " + exact_score(beginIdx, endIdx, state) + " some score: " + someScore)
+//          }
+//        }
+//        println("  Total Elapsed time: " + (t2 - t0)/1000000000.0 + "seconds")

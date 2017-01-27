@@ -5,11 +5,10 @@
 import collection.mutable
 
 object Types {
-  type State = String
+  type State = Int
   type Target = Int
   type Observation = String
   type Probability = BigDecimal
-  type ProbabilityMap = mutable.Map[(Int, State, State), BigDecimal]
-  type EmissionMap = mutable.Map[(String, Int), BigDecimal]
+  type ProbabilityMap = Array[Array[Array[BigDecimal]]]
   type ProbabilityPath = (Probability, List[State])
 }
