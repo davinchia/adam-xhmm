@@ -11,7 +11,7 @@ import Model._
 import Types._
 
 object Utils {
-  val debug = false
+  val debug = true
 
   def matrix_To_RDD(m: DenseMatrix[Double], sc: SparkContext): RDD[Vector] = {
     val columns = m.toArray.grouped(m.rows)

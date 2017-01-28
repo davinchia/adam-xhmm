@@ -123,7 +123,7 @@ object Model {
     bckCache.clear()
   }
 
-  def initialise_model() : Unit = {
+  def calc_common_variables() : Unit = {
     println("Initialising model..")
     calc_d_values()
     calc_transition_probabilities()

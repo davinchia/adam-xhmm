@@ -125,7 +125,7 @@ object Main {
     }
 
     // Initialise our model
-    initialise_model()
+    calc_common_variables()
 
     // Generate obs for each row
     for ( r <- 0 until normZ.rows ) {
