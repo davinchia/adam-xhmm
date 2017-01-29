@@ -2,14 +2,12 @@
   * Created by davinchia on 1/13/17.
   */
 
-import scala.collection.mutable.ListBuffer
 import breeze.linalg.DenseMatrix
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.mllib.linalg._
 import org.apache.spark.mllib.linalg.distributed.RowMatrix
 
 import Model.{transitions, targets, calc_common_variables}
-import XHMM._
 import Utils._
 import org.apache.commons.math3.distribution.NormalDistribution
 import org.apache.spark.rdd.RDD
