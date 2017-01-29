@@ -8,8 +8,10 @@
 import Types._
 import XHMM.calculate_Forward_Backward
 import org.apache.commons.math3.distribution.NormalDistribution
+
 import collection.mutable
 import Utils.debug
+import breeze.linalg.DenseMatrix
 
 object Model {
   val fwdCache: mutable.Map[(Target, State), BigDecimal] = mutable.HashMap[(Target, State), BigDecimal]()
@@ -136,8 +138,4 @@ object Model {
     calculate_Forward_Backward()
     println("  Done calculating probabilites for sample")
   }
-
-  def main(args: Array[String]): Unit = {
-  }
-
 }

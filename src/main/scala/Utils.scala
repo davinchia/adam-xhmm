@@ -6,9 +6,10 @@ import breeze.linalg.DenseMatrix
 import org.apache.spark.SparkContext
 import org.apache.spark.mllib.linalg.{DenseVector, Vector}
 import org.apache.spark.rdd.RDD
-
 import Model._
 import Types._
+
+import scala.collection.mutable.ListBuffer
 
 object Utils {
   val debug = true
@@ -50,6 +51,19 @@ object Utils {
       }
     }
     normZ
+  }
+
+  def convert_to_sample_array(normZ: DenseMatrix[Double]): Array[Sample] = {
+    val len = normZ.cols
+    var samples = new ListBuffer[Sample]; var curr = new ListBuffer[Double]
+    for (r <- 0 to normZ.rows-1) {
+      curr.clear
+      for (c <- 0 to normZ.cols-1) {
+        curr += normZ(r, c)
+      }
+      samples += new Sample(curr.toArray, len)
+    }
+    samples.toArray
   }
 
   def calc_phred_score(score: Double): Double = {
@@ -98,5 +112,10 @@ object Utils {
       (startIdx, endIdx, state)
 
     }
+  }
+
+  def main(args: Array[String]): Unit = {
+    val test = new DenseMatrix[Double](3,3, Array[Double](1,4,6,2,5,7,3,6,9))
+    convert_to_sample_array(test)
   }
 }

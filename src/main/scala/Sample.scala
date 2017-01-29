@@ -2,9 +2,9 @@
   * Created by joey on 1/29/17.
   */
 class Sample(val observations: Array[Double], val len: Int) extends Serializable {
-  var emissions   : Array[Array[Double]] = Array[Array[Double]]()  //[time, state]
-  var forward     : Array[Array[Double]] = Array[Array[Double]]()  //[state, time]
-  var backward    : Array[Array[Double]] = Array[Array[Double]]()  //[state, time]
+  var emissions   : Array[Array[BigDecimal]] = Array[Array[BigDecimal]]()  //[time, state]
+  var forward     : Array[Array[BigDecimal]] = Array[Array[BigDecimal]]()  //[state, time]
+  var backward    : Array[Array[BigDecimal]] = Array[Array[BigDecimal]]()  //[state, time]
   var viterbiPath : Array[Int]           = Array[Int]()
 
   def obs     = observations

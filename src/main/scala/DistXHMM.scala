@@ -90,21 +90,21 @@ object DistXHMM {
       path.toArray[Int]
     }
 
-    println("Start calculations..")
-    val t0 = System.nanoTime()
-    samples = samples.map( e => {
-      e.emissions   = e.observations map ( a => calc_emission(a) )
-      e.forward     = calc_forward(e.observations.length, e.emissions)
-      e.backward    = calc_backward(e.observations.length, e.emissions)
-      e.viterbiPath = calc_viterbi(e.fwd, e.bck)
-      e
-    })
-
-    val viterbis = samples.map(e => {e.viterbiPath}).collect()
-    val t1 = System.nanoTime()
-
-    viterbis.foreach( e => println(e.deep.mkString(", ")))
-    println("Elapsed time: " + (t1 - t0)/1000000000 + " seconds")
-    println("Done calculations.")
+//    println("Start calculations..")
+//    val t0 = System.nanoTime()
+//    samples = samples.map( e => {
+//      e.emissions   = e.observations map ( a => calc_emission(a) )
+//      e.forward     = calc_forward(e.observations.length, e.emissions)
+//      e.backward    = calc_backward(e.observations.length, e.emissions)
+//      e.viterbiPath = calc_viterbi(e.fwd, e.bck)
+//      e
+//    })
+//
+//    val viterbis = samples.map(e => {e.viterbiPath}).collect()
+//    val t1 = System.nanoTime()
+//
+//    viterbis.foreach( e => println(e.deep.mkString(", ")))
+//    println("Elapsed time: " + (t1 - t0)/1000000000 + " seconds")
+//    println("Done calculations.")
   }
 }
