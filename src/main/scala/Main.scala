@@ -137,7 +137,7 @@ object Main {
       // Note, this will currently fail if there are no obs in the row.
       Model.obs = listBuffer.toArray // Set obs to row from Z matrix
       println("Sample: " + (r+1))
-      Model.calc_probabilities_for_sample() // Calculate transition and emission probabilities
+      Model.calc_probabilities_for_sample()
 
       t2 = System.nanoTime()
       val path = viterbi(obs, states, start, transitions, emissions)
