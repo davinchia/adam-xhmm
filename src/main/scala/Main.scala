@@ -7,6 +7,8 @@ import breeze.linalg.DenseMatrix
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.mllib.linalg._
 import org.apache.spark.mllib.linalg.distributed.RowMatrix
+import com.esotericsoftware.kryo.Kryo
+import org.apache.spark.serializer.KryoRegistrator
 
 import Model._
 import XHMM._
@@ -18,10 +20,11 @@ object Main {
     /**
       * Spark is configured to run using Standalone Cluster mode.
       */
-
     val conf = new SparkConf().setAppName("Simple Application")
-      .set("spark.executor.memory", "3g")
-      .set("spark.driver.memory", "8g")
+      .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+      .set("spark.kryo.registrationRequired", "true")
+      .set("spark.kryo.registrator", "MyRegistrator")
+
     val sc = new SparkContext(conf)
 
     if (debug) println("Reading file.. ")
@@ -126,6 +129,8 @@ object Main {
 
     // Initialise our model
     calc_common_variables()
+
+    var broadTrans = sc.broadcast(transitions)
 
     // Generate obs for each row
     for ( r <- 0 until normZ.rows ) {

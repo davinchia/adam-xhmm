@@ -19,7 +19,7 @@ object TestScript {
     calc_common_variables()
     Model.calc_probabilities_for_sample() // Calculate transition and emission probabilities
 
-    val path = viterbi(obs, states, start, transitions, emissions)
+    val path = viterbi()
     val (beginIdx, endIdx, state) = search_for_non_diploid(path)
 
     println(beginIdx, endIdx, state)
