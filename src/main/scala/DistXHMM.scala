@@ -11,10 +11,10 @@ import scala.collection.mutable
 
 object DistXHMM {
   class Sample(val observations: Array[Double], val len: Int) extends Serializable {
-    var emissions   : Array[Array[Double]] = Array[Array[Double]]()
-    var forward    : Array[Array[Double]] = Array[Array[Double]]()
-    var backward   : Array[Array[Double]] = Array[Array[Double]]()
-    var viterbiPath: Array[Int]           = Array[Int]()
+    var emissions   : Array[Array[Double]] = Array[Array[Double]]()  //[time, state]
+    var forward     : Array[Array[Double]] = Array[Array[Double]]()  //[state, time]
+    var backward    : Array[Array[Double]] = Array[Array[Double]]()  //[state, time]
+    var viterbiPath : Array[Int]           = Array[Int]()
 
     def obs     = observations
 
@@ -31,7 +31,7 @@ object DistXHMM {
 
   def main(args: Array[String]): Unit = {
     val conf = new SparkConf().setAppName("Simple Application")
-      .set("spark.executor.memory", "1g")
+      .set("spark.executor.memory", "5g")
       .set("spark.driver.memory", "8g")
     val sc = new SparkContext(conf)
 
@@ -43,11 +43,9 @@ object DistXHMM {
       fakeSamples += new Sample(obsArray, obsArray.length)
     }
 
-//    val samples : RDD[Sample] = sc.parallelize(Array(new Sample(Array(1.0, 2.0, 3.0), 3),
-//                                                     new Sample(Array(4.0, 5.0, 6.0), 3),
-//                                                     new Sample(Array(7.0, 8.0, 9.0), 3)))
-
-    val samples: RDD[Sample] = sc.parallelize(fakeSamples.toArray[Sample])
+    println("Start parallelising..")
+    var samples: RDD[Sample] = sc.parallelize(fakeSamples.toArray[Sample])
+    println("Done parallelising.")
 
     def add(iRow: IndexedRow): Double = {
       iRow.vector(0) + broadTrans.value(0, 0)
@@ -66,7 +64,9 @@ object DistXHMM {
       var fwdCache = Array.ofDim[Double](3, len)
       val states = (0 to 2)
 
-      fwdCache(0)(0) = 0.01; fwdCache(0)(1) = 0.98; fwdCache(0)(2) = 0.01
+      fwdCache(0)(0) = 0.01 * emissions(0)(0)
+      fwdCache(1)(0) = 0.98 * emissions(0)(1)
+      fwdCache(2)(0) = 0.01 * emissions(0)(2)
 
       for (i <- 1 until len) {
         for (s <- states) {
@@ -79,15 +79,51 @@ object DistXHMM {
       fwdCache
     }
 
-    var emiss_samples = samples.map( e => {
-      e.emissions = e.observations map ( a => calc_emission(a) )
-      e.forward  = calc_forward(e.observations.length, e.emissions)
-      e.backward = calc_forward(e.observations.length, e.emissions)
+    def calc_backward(len: Int, emissions: Array[Array[Double]]): Array[Array[Double]] = {
+      val transitions = broadTrans.value
+      var bckCache = Array.ofDim[Double](3, len+1)
+      val states = (0 to 2)
+
+      bckCache(0)(len) = 1
+      bckCache(1)(len) = 1
+      bckCache(2)(len) = 1
+
+      for (i <- (1 to len-1).reverse) {
+        for (s <- states) {
+          bckCache(s)(i) = states map { e =>
+            transitions(s,e) * emissions(i)(e) * bckCache(e)(i+1)
+          } sum
+        }
+      }
+
+      bckCache
+    }
+
+    def calc_viterbi(fwdCache: Array[Array[Double]], bckCache: Array[Array[Double]]): Array[Int] = {
+      var path : mutable.ListBuffer[Int] = new mutable.ListBuffer[Int]
+      val states = (0 to 2)
+      for (t <- 0 until fwdCache(0).length) {
+        path += (states map { (s) => (fwdCache(s)(t) * bckCache(s)(t+1), s)
+        } maxBy (_._1))._2
+      }
+      path.toArray[Int]
+    }
+
+    println("Start calculations..")
+    val t0 = System.nanoTime()
+    samples = samples.map( e => {
+      e.emissions   = e.observations map ( a => calc_emission(a) )
+      e.forward     = calc_forward(e.observations.length, e.emissions)
+      e.backward    = calc_backward(e.observations.length, e.emissions)
+      e.viterbiPath = calc_viterbi(e.fwd, e.bck)
+      e
     })
 
-    val t0 = System.nanoTime()
-    emiss_samples.collect().foreach(println)
+    val viterbis: RDD[Array[Int]] = samples.map(e => {e.viterbiPath})
+
+    viterbis.collect.foreach( e => println(e.deep.mkString(", ")))
     val t1 = System.nanoTime()
     println("Elapsed time: " + (t1 - t0)/1000000000 + " seconds")
+    println("Done calculations.")
   }
 }
