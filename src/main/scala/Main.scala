@@ -134,13 +134,12 @@ object Main {
         listBuffer += normZ(r, a)
       }
 
-      // Note, this will currently fail if there are no obs in the row.
       Model.obs = listBuffer.toArray // Set obs to row from Z matrix
       println("Sample: " + (r+1))
       Model.calc_probabilities_for_sample()
 
       t2 = System.nanoTime()
-      val path = viterbi(obs, states, start, transitions, emissions)
+      val path = viterbi()
       t3 = System.nanoTime()
 
       if (debug) {

@@ -119,10 +119,10 @@ object DistXHMM {
       e
     })
 
-    val viterbis: RDD[Array[Int]] = samples.map(e => {e.viterbiPath})
-
-    viterbis.collect.foreach( e => println(e.deep.mkString(", ")))
+    val viterbis = samples.map(e => {e.viterbiPath}).collect()
     val t1 = System.nanoTime()
+
+    viterbis.foreach( e => println(e.deep.mkString(", ")))
     println("Elapsed time: " + (t1 - t0)/1000000000 + " seconds")
     println("Done calculations.")
   }

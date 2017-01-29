@@ -69,13 +69,8 @@ object XHMM {
   /**
     * The following are higher level XHMM calls. These access the lower probability calls above.
     */
-  def viterbi(observations: Array[Double],
-              states: Array[State],
-              start: State => BigDecimal,
-              transition: ProbabilityMap,
-              emissions: Array[Array[BigDecimal]]): List[State] = {
+  def viterbi(): List[State] = {
 
-    def probability(p: ProbabilityPath) = p._1
     def mostLikelyPath() : List[State] = {
       var path : mutable.ListBuffer[State] = mutable.ListBuffer[State]()
       for (t <- 0 to 264) {
