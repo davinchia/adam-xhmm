@@ -6,13 +6,13 @@ import breeze.linalg.DenseMatrix
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.mllib.linalg._
 import org.apache.spark.mllib.linalg.distributed.RowMatrix
-
-import Model.{transitions, targets, calc_common_variables}
+import Model.{calc_common_variables, targets, transitions}
 import Utils._
-import org.apache.commons.math3.distribution.NormalDistribution
 import org.apache.spark.rdd.RDD
+import DistXHMM._
 
 import scala.collection.mutable
+
 
 object Main {
   def main(args: Array[String]) {
@@ -30,8 +30,8 @@ object Main {
     if (debug) println("Reading file.. ")
     // Input
 //    val arr = sc.textFile("file:///home/joey/Desktop/1000 Genomes/run-results/test3/DATA.filtered_centered.RD.txt")
-//    val arr = sc.textFile("/user/dchia/DATA.filtered_centered.RD.txt")
-    val arr = sc.textFile("file:///home/joey/Desktop/1000 Genomes/RUN/DATA.filtered_centered.RD.txt")
+    val arr = sc.textFile("/user/dchia/DATA.filtered_centered.RD.txt")
+//    val arr = sc.textFile("file:///home/joey/Desktop/1000 Genomes/RUN/DATA.filtered_centered.RD.txt")
     arr.cache() // Make sure Spark saves this to memory, since we are going to do more operations on it
 
     // Assign targets
@@ -134,81 +134,29 @@ object Main {
     var broadTrans = sc.broadcast(transitions)
     println("Start parallelising..")
 
-    def calc_emission(ob: Double): Array[BigDecimal] = {
-      val normDistDip : NormalDistribution = new NormalDistribution(0.0, 1.0)
-      val normDistDel : NormalDistribution = new NormalDistribution(-3, 1.0)
-      val normDistDup : NormalDistribution = new NormalDistribution(3, 1.0)
-
-      Array(BigDecimal(normDistDel.density(ob)), BigDecimal(normDistDip.density(ob)), BigDecimal(normDistDup.density(ob)))
+    var fakeSamples = new mutable.ListBuffer[Sample]
+    var obsArray = (1 to transitions.length).toArray.map(_.toDouble)
+    for (i <- 1 to 70000) {
+      fakeSamples += new Sample(obsArray, obsArray.length)
     }
 
-    def calc_forward(len: Int, emissions: Array[Array[BigDecimal]]): Array[Array[BigDecimal]] = {
-      val transitions = broadTrans.value
-      var fwdCache = Array.ofDim[BigDecimal](3, len)
-      val states = (0 to 2)
+//    var samples: RDD[Sample] = sc.parallelize(convert_to_sample_array(normZ))
+    var samples: RDD[Sample] = sc.parallelize(fakeSamples.toArray[Sample])
+    samples.cache()
 
-      fwdCache(0)(0) = 0.01 * emissions(0)(0)
-      fwdCache(1)(0) = 0.98 * emissions(0)(1)
-      fwdCache(2)(0) = 0.01 * emissions(0)(2)
-
-      for (i <- 1 until len) {
-        for (s <- states) {
-          fwdCache(s)(i) = (states map { e =>
-            fwdCache(e)(i-1) * transitions(i)(e)(s)
-          } sum) * emissions(i)(s)
-        }
-      }
-
-      fwdCache
-    }
-
-    def calc_backward(len: Int, emissions: Array[Array[BigDecimal]]): Array[Array[BigDecimal]] = {
-      val transitions = broadTrans.value
-      var bckCache = Array.ofDim[BigDecimal](3, len+1)
-      val states = (0 to 2)
-
-      bckCache(0)(len) = 1
-      bckCache(1)(len) = 1
-      bckCache(2)(len) = 1
-
-      for (i <- (1 to len-1).reverse) {
-        for (s <- states) {
-          bckCache(s)(i) = states map { e =>
-            transitions(i)(s)(e) * emissions(i)(e) * bckCache(e)(i+1)
-          } sum
-        }
-      }
-
-      bckCache
-    }
-
-    def calc_viterbi(fwdCache: Array[Array[BigDecimal]], bckCache: Array[Array[BigDecimal]]): Array[Int] = {
-      var path : mutable.ListBuffer[Int] = new mutable.ListBuffer[Int]
-      val states = (0 to 2)
-      for (t <- 0 until fwdCache(0).length) {
-        path += (states map { (s) => (fwdCache(s)(t) * bckCache(s)(t+1), s)
-        } maxBy (_._1))._2
-      }
-      path.toArray[Int]
-    }
-
-    var samples: RDD[Sample] = sc.parallelize(convert_to_sample_array(normZ))
-    println("Done parallelising.")
-
-    println("Start calculations..")
     t1 = System.nanoTime()
     samples = samples.map( e => {
       e.emissions   = e.observations map ( a => calc_emission(a) )
-      e.forward     = calc_forward(e.observations.length, e.emissions)
-      e.backward    = calc_backward(e.observations.length, e.emissions)
+      e.forward     = calc_forward(e.observations.length, e.emissions, broadTrans.value)
+      e.backward    = calc_backward(e.observations.length, e.emissions, broadTrans.value)
       e.viterbiPath = calc_viterbi(e.fwd, e.bck)
       e
     })
 
     val viterbis = samples.map(e => {e.viterbiPath}).collect()
     t2 = System.nanoTime()
-
-    viterbis.foreach( e => println(e.deep.mkString(", ")))
+    println("Done Viterbi for: " + viterbis.length)
+//    viterbis.foreach( e => println(e.deep.mkString(", ")))
     println("Elapsed time: " + (t2 - t1)/1000000000 + " seconds")
     println("Done calculations.")
 
