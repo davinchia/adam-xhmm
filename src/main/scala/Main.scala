@@ -16,7 +16,7 @@ import scala.collection.mutable
 
 object Main {
   def main(args: Array[String]) {
-
+    val fakeData = false
     /**
       * Spark is configured to run using Standalone Cluster mode.
       */
@@ -141,8 +141,8 @@ object Main {
       fakeSamples += new Sample(obsArray, obsArray.length)
     }
 
-//    var samples: RDD[Sample] = sc.parallelize(convert_to_sample_array(normZ))
-    var samples: RDD[Sample] = sc.parallelize(fakeSamples.toArray[Sample])
+    var samples: RDD[Sample] = if (fakeData) sc.parallelize(fakeSamples.toArray[Sample])
+                                else  sc.parallelize(convert_to_sample_array(normZ))
     samples.cache()
 
     t1 = System.nanoTime()
