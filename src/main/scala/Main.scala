@@ -20,17 +20,18 @@ object Main {
     /**
       * Spark is configured to run using Standalone Cluster mode.
       */
-    val conf = new SparkConf().setAppName("Simple Application")
+    val conf = new SparkConf().setAppName("DECA")
       .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
       .set("spark.kryo.registrationRequired", "true")
       .set("spark.kryo.registrator", "MyRegistrator")
 
-    val sc = new SparkContext(conf)
+    val sc = new SparkContext(conf); val fakeLength = 2000
 
     if (debug) println("Reading file.. ")
     // Input
 //    val arr = sc.textFile("file:///home/joey/Desktop/1000 Genomes/run-results/test3/DATA.filtered_centered.RD.txt")
     val arr = sc.textFile("/user/dchia/DATA.filtered_centered.RD.txt")
+//    val arr = sc.textFile("/user/dchia/DATA.filtered_centered.small.RD.txt")
 //    val arr = sc.textFile("file:///home/joey/Desktop/1000 Genomes/RUN/DATA.filtered_centered.RD.txt")
     arr.cache() // Make sure Spark saves this to memory, since we are going to do more operations on it
 
@@ -136,7 +137,7 @@ object Main {
 
     var fakeSamples = new mutable.ListBuffer[Sample]
     var obsArray = (1 to transitions.length).toArray.map(_.toDouble)
-    for (i <- 1 to 70000) {
+    for (i <- 1 to fakeLength) {
       fakeSamples += new Sample(obsArray, obsArray.length)
     }
 
@@ -155,8 +156,8 @@ object Main {
 
     val viterbis = samples.map(e => {e.viterbiPath}).collect()
     t2 = System.nanoTime()
-    println("Done Viterbi for: " + viterbis.length)
-//    viterbis.foreach( e => println(e.deep.mkString(", ")))
+//    println("Done Viterbi for: " + viterbis.length)
+    viterbis.foreach( e => println(e.deep.mkString(", ")))
     println("Elapsed time: " + (t2 - t1)/1000000000 + " seconds")
     println("Done calculations.")
 
