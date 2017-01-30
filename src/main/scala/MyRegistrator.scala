@@ -16,6 +16,7 @@ class MyRegistrator extends KryoRegistrator {
     kryo.register(classOf[java.math.RoundingMode])
     kryo.register(classOf[scala.Array[scala.Array[Int]] ])
     kryo.register(classOf[scala.Array[scala.Array[BigDecimal]] ])
+    kryo.register(classOf[scala.Array[scala.Array[Double]] ])
     kryo.register(classOf[scala.Array[scala.Array[scala.Array[BigDecimal]]] ])
 
     kryo.register(Class.forName("breeze.linalg.DenseVector$mcD$sp"))

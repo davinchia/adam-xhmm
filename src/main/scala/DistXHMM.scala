@@ -14,7 +14,7 @@ object DistXHMM {
     val normDistDip : NormalDistribution = new NormalDistribution(0.0, 1.0)
     val normDistDel : NormalDistribution = new NormalDistribution(-3, 1.0)
     val normDistDup : NormalDistribution = new NormalDistribution(3, 1.0)
-
+    print(normDistDel.density(ob) + " " + normDistDel.density(ob) + " " + normDistDel.density(ob))
     Array(BigDecimal(normDistDel.density(ob)), BigDecimal(normDistDip.density(ob)), BigDecimal(normDistDup.density(ob)))
   }
 

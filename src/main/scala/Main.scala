@@ -2,9 +2,9 @@
   * Created by davinchia on 1/13/17.
   */
 
-import breeze.linalg.DenseMatrix
+import breeze.linalg.{ DenseMatrix => BreezeDenseMatrix }
 import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.mllib.linalg._
+import org.apache.spark.mllib.linalg.{ Vector, Matrix, SingularValueDecomposition }
 import org.apache.spark.mllib.linalg.distributed.RowMatrix
 import Model.{calc_common_variables, targets, transitions}
 import Utils._
@@ -29,10 +29,10 @@ object Main {
 
     if (debug) println("Reading file.. ")
     // Input
-//    val arr = sc.textFile("file:///home/joey/Desktop/1000 Genomes/run-results/test3/DATA.filtered_centered.RD.txt")
-    val arr = sc.textFile("/user/dchia/DATA.filtered_centered.RD.txt")
+//    val arr = sc.textFile("/user/dchia/DATA.filtered_centered.RD.txt")
 //    val arr = sc.textFile("/user/dchia/DATA.filtered_centered.small.RD.txt")
 //    val arr = sc.textFile("file:///home/joey/Desktop/1000 Genomes/RUN/DATA.filtered_centered.RD.txt")
+    val arr = sc.textFile("file:///home/joey/Desktop/1000 Genomes/run-results/test3/DATA.filtered_centered.RD.txt")
     arr.cache() // Make sure Spark saves this to memory, since we are going to do more operations on it
 
     // Assign targets
@@ -49,27 +49,27 @@ object Main {
 
     var t0 = System.nanoTime(); var t1 = System.nanoTime(); var t2 = System.nanoTime(); var t3 = System.nanoTime(); var t4 = System.nanoTime()
     /**
-      * To be clear, the DenseMatrix we use belongs to Breeze and not MLlib.
-      * Breeze allows us to easily do matrix addition with transposes.
-      * All DenseMatrices in this file refers to Breeze DenseMatrices; will be indicated otherwise if they refer to MLLib.
+      * Slightly confusing but we are using both Breeze and Spark dense matrixes. They have been renamed to reflect that.
+      * We do so because Breeze offers an easier way to convert and multiply data, while we need Spark for the multiplcation
+      * step in PCA normalisation.
       * DenseMatrix reads in the matrix in column-major order; our matrix is being transposed.
-      * Acceptable since this allows us to not calculate the U component.
       */
 
     if (debug) println("Turning RDD into DenseMatrix")
-    val rt = new DenseMatrix(rows, cols, numericData.take(dataLength)); val r = rt.t
+    val rt = new BreezeDenseMatrix(rows, cols, numericData.take(dataLength)); val r = rt.t
     println("Finished turning RDD into DenseMatrix")
+
+    println(r.rows + " " + r.cols)
 
     // Turn matrix into RDD to allow us to utilise MLlib SVD on it
     if (debug) println("Creating RowMatrix")
-    val rm: RowMatrix = new RowMatrix(matrix_To_RDD(rt, sc)) // We are feeding in a transpose matrix, so we only need V
+    val rm: RowMatrix = new RowMatrix(matrix_To_RDD(r, sc))
     val numSamples = cols
     println("RowMatrix created ")
 
     t1 = System.nanoTime()
     if (debug) println("Start SVD")
-    // we do not need u, since SVD is done on the transpose
-    val svd: SingularValueDecomposition[RowMatrix, Matrix] = rm.computeSVD(Math.min(rm.numRows(), rm.numCols()).toInt, computeU = false)
+    val svd: SingularValueDecomposition[RowMatrix, Matrix] = rm.computeSVD(Math.min(rm.numRows(), rm.numCols()).toInt, computeU = true)
     println("Done SVD")
     if (debug) {
       t2 = System.nanoTime()
@@ -77,36 +77,35 @@ object Main {
       println("Total Elapsed time: " + (t2 - t0)/1000000000.0 + " seconds")
     }
 
-    /**
-      * SVD is done in a distributed manner. All operations are done locally, from here onwards.
-      */
-
     if (debug) println("Starting PCA normalisation")
     t1 = System.nanoTime()
-    val d: Vector = svd.s // The singular values are stored in a local dense vector.
-    val V: Matrix = svd.V // The V factor is a local dense matrix.
-    val dmV : DenseMatrix[Double] = new DenseMatrix(V.numCols, V.numRows, V.toArray) // Transform V to DenseMatrix
+    // We need to compute U in order to normalise the matrix using the PCA components.
+    val U: RowMatrix = svd.U // The U factor is a rowmatrix
+    val d: Vector    = svd.s // The singular values are stored in a local dense vector.
+    val V: Matrix    = svd.V // The V factor is a local dense matrix.
+
+    // Transform U & V into DenseMatrix for easier operations. Transpose because Breeze takes in column-major arrays.
+    val dmU = new BreezeDenseMatrix(U.numRows().toInt, U.numCols().toInt, U.rows.map(x => x.toArray).collect.flatten).t
+    val dmVt : BreezeDenseMatrix[Double] = new BreezeDenseMatrix(V.numRows, V.numCols, V.toArray).t
 
     t3 = System.nanoTime()
-    // Calculate total, relative values, and eigenvectors to remove
     val toRemove = calc_vectors_to_remove(d, numSamples)
     if (debug) {
       t4 = System.nanoTime()
       println("  Time to compute relative values: " + (t4 - t3)/1000000000.0 + " seconds")
-      println("  Number of components to remove: " + toRemove.length)
+      println("  Number of components to remove: " + toRemove.filter(x => x).length)
     }
 
-    // Equation 1
-    t3 = System.nanoTime()
-    var normR = r
-    for ( a <- toRemove.indices ) {
-      if (toRemove(a)) {
-        // c * ct * R, where R is the original, samples by targets, matrix
-        val c = dmV(::, a); val ct = c.t
-        val res = c * ct * r
-        normR -= res
+    // Remove the Principal Components with the highest variance according to our threshold.
+    val zeroD: BreezeDenseMatrix[Double] = BreezeDenseMatrix.zeros[Double](numSamples, numSamples)
+    // Zero out the components we are removing.
+    for (i <- 0 until toRemove.length) {
+      if (!toRemove(i)) zeroD(i,i) = d(i)
       }
-    }
+    val normR = (dmU * zeroD * dmVt)
+
+    t3 = System.nanoTime()
+
     if (debug) {
       t4 = System.nanoTime()
       println("  Time to remove components: " + (t4 - t3)/1000000000.0 + " seconds")
@@ -120,8 +119,8 @@ object Main {
     if (debug) println("Starting Z-score normalisation")
     // Turn each row in normR into a z-score
     t1 = System.nanoTime()
-    val normZ: DenseMatrix[Double] = z_normalise_matrix(normR)
-
+    val normZ: BreezeDenseMatrix[Double] = z_normalise_matrix(normR)
+//    println(normZ)
     if (debug) {
       t2 = System.nanoTime()
       println("Done Z-score normalisation")
@@ -154,17 +153,28 @@ object Main {
       e
     })
 
-    val viterbis = samples.map(e => {e.viterbiPath}).collect()
+    val viterbis = samples.map(e => {e.viterbiPath}).count()
     t2 = System.nanoTime()
-//    println("Done Viterbi for: " + viterbis.length)
-    viterbis.foreach( e => println(e.deep.mkString(", ")))
+    println("Done Viterbi for: " + viterbis)
+//    viterbis.foreach( e => println(e.deep.mkString(", ")))
     println("Elapsed time: " + (t2 - t1)/1000000000 + " seconds")
     println("Done calculations.")
 
     println("Total Elapsed time: " + (t2 - t0)/1000000000 + " seconds")
-
   }
 }
+
+//var normR = r
+//for ( a <- toRemove.indices ) {
+//  if (toRemove(a)) {
+//    // c * ct * R, where R is the original, samples by targets, matrix
+//    val c = dmV(::, a); val ct = c.t
+//    val res = c * ct * r
+//    normR -= res
+//  }
+//}
+
+
 // Generate obs for each row
 //for ( r <- 0 until normZ.rows ) {
 //  val listBuffer = new ListBuffer[Double]()
