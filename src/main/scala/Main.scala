@@ -16,6 +16,9 @@ import scala.collection.mutable
 
 object Main {
   def main(args: Array[String]) {
+    var path = args(0)
+    println(path)
+
     val fakeData = false
     /**
       * Spark is configured to run using Standalone Cluster mode.
@@ -29,10 +32,7 @@ object Main {
 
     if (debug) println("Reading file.. ")
     // Input
-//    val arr = sc.textFile("/user/dchia/DATA.filtered_centered.RD.txt")
-//    val arr = sc.textFile("/user/dchia/DATA.filtered_centered.small.RD.txt")
-//    val arr = sc.textFile("file:///home/joey/Desktop/1000 Genomes/RUN/DATA.filtered_centered.RD.txt")
-    val arr = sc.textFile("file:///home/joey/Desktop/1000 Genomes/run-results/test3/DATA.filtered_centered.RD.txt")
+    val arr = sc.textFile(path)
     arr.cache() // Make sure Spark saves this to memory, since we are going to do more operations on it
 
     // Assign targets
@@ -73,8 +73,8 @@ object Main {
     println("Done SVD")
     if (debug) {
       t2 = System.nanoTime()
-      println("Elapsed time: " + (t2 - t1)/1000000000.0 + " seconds")
-      println("Total Elapsed time: " + (t2 - t0)/1000000000.0 + " seconds")
+      println("  Elapsed time: " + (t2 - t1)/1000000000.0 + " seconds")
+      println("  Total Elapsed time: " + (t2 - t0)/1000000000.0 + " seconds")
     }
 
     if (debug) println("Starting PCA normalisation")
@@ -84,10 +84,7 @@ object Main {
     val d: Vector    = svd.s // The singular values are stored in a local dense vector.
     val V: Matrix    = svd.V // The V factor is a local dense matrix.
 
-//    val a = U.rows.map(x => x.toArray).collect.flatten
-//    println(a.mkString(", "))
-//    U.rows.collect.foreach(println)
-
+    t3 = System.nanoTime()
     // Transform U & V into DenseMatrix for easier operations. Transpose because Breeze takes in column-major arrays.
     val dmVt : BreezeDenseMatrix[Double] = new BreezeDenseMatrix(V.numRows, V.numCols, V.toArray).t
     var dmU  : BreezeDenseMatrix[Double] = BreezeDenseMatrix.zeros[Double](U.numRows().toInt, U.numCols().toInt)
@@ -101,6 +98,12 @@ object Main {
       }
     }
 
+    if (debug) {
+      t4 = System.nanoTime()
+      println("  Finished setting up PCA matrices")
+      println("  Time to set up PCA matrixes: " + (t4 - t3)/1000000000.0 + " seconds")
+    }
+
     t3 = System.nanoTime()
     val toRemove = calc_vectors_to_remove(d, numSamples)
     if (debug) {
@@ -109,6 +112,7 @@ object Main {
       println("  Number of components to remove: " + toRemove.filter(x => x).length)
     }
 
+    t3 = System.nanoTime()
     // Remove the Principal Components with the highest variance according to our threshold.
     val zeroD: BreezeDenseMatrix[Double] = BreezeDenseMatrix.zeros[Double](numSamples, numSamples)
     // Zero out the components we are removing.
@@ -117,15 +121,13 @@ object Main {
       }
     val normR = (dmU * zeroD * dmVt).t
 
-    t3 = System.nanoTime()
-
     if (debug) {
       t4 = System.nanoTime()
       println("  Time to remove components: " + (t4 - t3)/1000000000.0 + " seconds")
       t2 = System.nanoTime()
       println("Done PCA normalisation")
-      println("Elapsed time: " + (t2 - t1)/1000000000.0 + " seconds")
-      println("Total Elapsed time: " + (t2 - t0)/1000000000.0 + " seconds")
+      println("  Elapsed time: " + (t2 - t1)/1000000000.0 + " seconds")
+      println("  Total Elapsed time: " + (t2 - t0)/1000000000.0 + " seconds")
     }
 
 
@@ -136,8 +138,8 @@ object Main {
     if (debug) {
       t2 = System.nanoTime()
       println("Done Z-score normalisation")
-      println("Elapsed time: " + (t2 - t1)/1000000000.0 + " seconds")
-      println("Total Elapsed time: " + (t2 - t0)/1000000000.0 + " seconds")
+      println("  Elapsed time: " + (t2 - t1)/1000000000.0 + " seconds")
+      println("  Total Elapsed time: " + (t2 - t0)/1000000000.0 + " seconds")
     }
 
     // Initialise our model
