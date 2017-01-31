@@ -56,7 +56,7 @@ object Main {
       */
 
     if (debug) println("Turning RDD into DenseMatrix")
-    val rt = new BreezeDenseMatrix(rows, cols, numericData.take(dataLength)); val r = rt.t
+    val rt = new BreezeDenseMatrix(rows, cols, numericData.collect()); val r = rt.t
     println("Finished turning RDD into DenseMatrix")
 
     println(r.rows + " " + r.cols)
@@ -169,9 +169,9 @@ object Main {
 
     val viterbis = samples.map(e => {e.viterbiPath}).collect()
     t2 = System.nanoTime()
-    println("Done Viterbi for: " + viterbis.length)
+    println("  Done Viterbi for: " + viterbis.length)
 //    viterbis.foreach( e => println(e.deep.mkString(", ")))
-//    println("Elapsed time: " + (t2 - t1)/1000000000 + " seconds")
+    println("  Elapsed time: " + (t2 - t1)/1000000000 + " seconds")
     println("Done calculations.")
 
     println("Total Elapsed time: " + (t2 - t0)/1000000000 + " seconds")
