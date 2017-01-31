@@ -84,10 +84,6 @@ object Main {
     val d: Vector    = svd.s // The singular values are stored in a local dense vector.
     val V: Matrix    = svd.V // The V factor is a local dense matrix.
 
-//    val a = U.rows.map(x => x.toArray).collect.flatten
-//    println(a.mkString(", "))
-//    U.rows.collect.foreach(println)
-
     // Transform U & V into DenseMatrix for easier operations. Transpose because Breeze takes in column-major arrays.
     val dmVt : BreezeDenseMatrix[Double] = new BreezeDenseMatrix(V.numRows, V.numCols, V.toArray).t
     var dmU  : BreezeDenseMatrix[Double] = BreezeDenseMatrix.zeros[Double](U.numRows().toInt, U.numCols().toInt)
