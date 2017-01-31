@@ -50,7 +50,7 @@ object Main {
     var t0 = System.nanoTime(); var t1 = System.nanoTime(); var t2 = System.nanoTime(); var t3 = System.nanoTime(); var t4 = System.nanoTime()
     /**
       * Slightly confusing but we are using both Breeze and Spark dense matrixes. They have been renamed to reflect that.
-      * We do so because Breeze offers an easier way to convert and multiply data, while we need Spark for the multiplcation
+      * We do so because Breeze offers an easier way to convert, multiply and update data, while we need Spark for the multiplcation
       * step in PCA normalisation.
       * DenseMatrix reads in the matrix in column-major order; our matrix is being transposed.
       */
