@@ -63,7 +63,7 @@ object Main {
 
     // Turn matrix into RDD to allow us to utilise MLlib SVD on it
     if (debug) println("Creating RowMatrix")
-    val rm: RowMatrix = new RowMatrix(matrix_To_RDD(r, sc))
+    val rm: RowMatrix = new RowMatrix(matrix_To_RDD(rt, sc))
     val numSamples = cols
     println("RowMatrix created ")
 
@@ -84,9 +84,22 @@ object Main {
     val d: Vector    = svd.s // The singular values are stored in a local dense vector.
     val V: Matrix    = svd.V // The V factor is a local dense matrix.
 
+//    val a = U.rows.map(x => x.toArray).collect.flatten
+//    println(a.mkString(", "))
+//    U.rows.collect.foreach(println)
+
     // Transform U & V into DenseMatrix for easier operations. Transpose because Breeze takes in column-major arrays.
-    val dmU = new BreezeDenseMatrix(U.numRows().toInt, U.numCols().toInt, U.rows.map(x => x.toArray).collect.flatten).t
     val dmVt : BreezeDenseMatrix[Double] = new BreezeDenseMatrix(V.numRows, V.numCols, V.toArray).t
+    var dmU  : BreezeDenseMatrix[Double] = BreezeDenseMatrix.zeros[Double](U.numRows().toInt, U.numCols().toInt)
+    var row = 0
+    U.rows.collect().foreach{
+      Vect => {
+        for (col <- 0 until numSamples) {
+          dmU(row, col) = Vect(col)
+        }
+        row += 1
+      }
+    }
 
     t3 = System.nanoTime()
     val toRemove = calc_vectors_to_remove(d, numSamples)
@@ -102,7 +115,7 @@ object Main {
     for (i <- 0 until toRemove.length) {
       if (!toRemove(i)) zeroD(i,i) = d(i)
       }
-    val normR = (dmU * zeroD * dmVt)
+    val normR = (dmU * zeroD * dmVt).t
 
     t3 = System.nanoTime()
 
@@ -120,7 +133,6 @@ object Main {
     // Turn each row in normR into a z-score
     t1 = System.nanoTime()
     val normZ: BreezeDenseMatrix[Double] = z_normalise_matrix(normR)
-//    println(normZ)
     if (debug) {
       t2 = System.nanoTime()
       println("Done Z-score normalisation")
@@ -153,16 +165,30 @@ object Main {
       e
     })
 
-    val viterbis = samples.map(e => {e.viterbiPath}).count()
+    val viterbis = samples.map(e => {e.viterbiPath}).collect()
     t2 = System.nanoTime()
-    println("Done Viterbi for: " + viterbis)
+    println("Done Viterbi for: " + viterbis.length)
 //    viterbis.foreach( e => println(e.deep.mkString(", ")))
-    println("Elapsed time: " + (t2 - t1)/1000000000 + " seconds")
+//    println("Elapsed time: " + (t2 - t1)/1000000000 + " seconds")
     println("Done calculations.")
 
     println("Total Elapsed time: " + (t2 - t0)/1000000000 + " seconds")
   }
 }
+
+// Transform U & V into DenseMatrix for easier operations. Transpose because Breeze takes in column-major arrays.
+//val dmU = new BreezeDenseMatrix(U.numRows().toInt, U.numCols().toInt, U.rows.map(x => x.toArray).collect.flatten).t
+//val dmVt : BreezeDenseMatrix[Double] = new BreezeDenseMatrix(V.numRows, V.numCols, V.toArray).t
+//
+//
+//
+//t3 = System.nanoTime()
+//val toRemove = calc_vectors_to_remove(d, numSamples)
+//if (debug) {
+//  t4 = System.nanoTime()
+//  println("  Time to compute relative values: " + (t4 - t3)/1000000000.0 + " seconds")
+//  println("  Number of components to remove: " + toRemove.filter(x => x).length)
+//}
 
 //var normR = r
 //for ( a <- toRemove.indices ) {
