@@ -6,16 +6,64 @@ import breeze.linalg.DenseMatrix
 import org.apache.spark.SparkContext
 import org.apache.spark.mllib.linalg.{DenseVector, Vector}
 import org.apache.spark.rdd.RDD
-
 import Model._
 import Types._
 
+import scala.collection.mutable.ListBuffer
+
 object Utils {
+  val debug = true
+
   def matrix_To_RDD(m: DenseMatrix[Double], sc: SparkContext): RDD[Vector] = {
     val columns = m.toArray.grouped(m.rows)
     val rows = columns.toSeq.transpose // Skip this if you want a column-major RDD.
     val vectors = rows.map(row => new DenseVector(row.toArray))
     sc.parallelize(vectors)
+  }
+
+  def calc_vectors_to_remove(d: Vector, numSamples: Int) : Array[Boolean] = {
+    val vals = d.toArray.map( x => x * x / numSamples ) // Transform singular values into eigenvalues
+    // Calculate total, relative values, and eigenvectors to remove
+    val total = vals.sum
+    val relVar = vals.map( x => x / total )
+    relVar.map( x => x >= 0.7 / numSamples )
+  }
+
+  def z_normalise_matrix(normR: DenseMatrix[Double]): DenseMatrix[Double] = {
+    val normZ = normR
+    for ( a <- 0 until normR.rows ) {
+      val row = normZ(a, ::); val cols = normZ.cols
+
+      var total = 0.0
+      for ( b <- 0 until cols ) {
+        total += row(b)
+      }
+      val mean = total / cols
+
+      var std = 0.0
+      for ( b <- 0 until cols ) {
+        std += Math.pow(row(b) - mean, 2)
+      }
+      std = Math.sqrt(std / (cols-1))
+
+      for ( b <- 0 until cols ) {
+        normZ(a,b) = (normZ(a,b) - mean) / std
+      }
+    }
+    normZ
+  }
+
+  def convert_to_sample_array(normZ: DenseMatrix[Double]): Array[Sample] = {
+    val len = normZ.cols
+    var samples = new ListBuffer[Sample]; var curr = new ListBuffer[Double]
+    for (r <- 0 to normZ.rows-1) {
+      curr.clear
+      for (c <- 0 to normZ.cols-1) {
+        curr += normZ(r, c)
+      }
+      samples += new Sample(curr.toArray, len)
+    }
+    samples.toArray
   }
 
   def calc_phred_score(score: Double): Double = {
@@ -38,27 +86,27 @@ object Utils {
     * A warning is printed if there are invalid deviations.
     */
   def search_for_non_diploid(path: List[State]): (Int, Int, State) = {
-    val idxDel = path.indexOf("Deletion")
-    val idxDup = path.indexOf("Duplication")
+    val idxDel = path.indexOf(0)
+    val idxDup = path.indexOf(2)
 
     if (idxDel >= 0 && idxDup >= 0) {
       println("Error. Path has multiple deviating states.")
-      (-1, -1, "")
+      (-1, -1, -1)
     } else if (idxDel < 0 && idxDup < 0) {
-      (-1, -1, "")
+      (-1, -1, -1)
     } else {
-      var startIdx = idxDel; var endIdx = path.lastIndexOf("Deletion");
-      var state = "Deletion"
+      var startIdx = idxDel; var endIdx = path.lastIndexOf(0)
+      var state = 0
 
       if (idxDup >= 0) {
-        startIdx = idxDup; endIdx = path.lastIndexOf("Duplication")
-        state = "Duplication"
+        startIdx = idxDup; endIdx = path.lastIndexOf(2)
+        state = 2
       }
 
       for (a <- path.slice(startIdx, endIdx+1)) {
         if (a != state) {
           println("Error. Path has multiple breaks.")
-          return (-1, -1, "")
+          return (-1, -1, -1)
         }
       }
       (startIdx, endIdx, state)
@@ -66,58 +114,8 @@ object Utils {
     }
   }
 
-  def ugly_print_path(path: List[State]): Unit = {
-    for (a <- path) {
-      if (a == "Deletion") print(0 + " ")
-      if (a == "Diploid") print(1 + " ")
-      if (a == "Duplication") print(2 + " ")
-    }
-  }
-
-  def print_emiss(): Unit = {
-    for (t <- 0 to 264) {
-      println("t: " + t + " " + emissions("Deletion", t) + " " + emissions("Diploid", t) + " " + emissions("Duplication", t))
-    }
-  }
-
-  def print_trans(): Unit = {
-    for (t <- 1 to 264) {
-      println("t: " + t)
-      println("state: " + "Del" + " " + transitions(t, "Deletion", "Deletion") + " " + transitions(t, "Deletion", "Diploid") + " " + transitions(t, "Deletion", "Duplication"))
-      println("state: " + "Dip" + " " + transitions(t, "Diploid", "Deletion") + " " + transitions(t, "Diploid", "Diploid") + " " + transitions(t, "Diploid", "Duplication"))
-      println("state: " + "Dup" + " " + transitions(t, "Duplication", "Deletion") + " " + transitions(t, "Duplication", "Diploid") + " " + transitions(t, "Duplication", "Duplication"))
-    }
-  }
-
   def main(args: Array[String]): Unit = {
-    println(" Pass: ")
-    val pass1 = List("Diploid", "Diploid", "Diploid", "Deletion", "Diploid", "Diploid")
-    val pass2 = List("Diploid", "Diploid", "Diploid", "Duplication", "Diploid", "Diploid")
-    val pass3 = List("Diploid", "Diploid", "Diploid", "Deletion", "Deletion", "Deletion")
-    val pass4 = List("Diploid", "Duplication", "Duplication", "Duplication", "Diploid", "Diploid")
-    val pass5 = List("Deletion", "Deletion", "Diploid", "Diploid", "Diploid", "Diploid")
-
-    println(search_for_non_diploid(pass1)) // (3, 3, Deletion)
-    println(search_for_non_diploid(pass2)) // (3, 3, Duplication)
-    println(search_for_non_diploid(pass3)) // (3, 5, Deletion)
-    println(search_for_non_diploid(pass4)) // (1, 3, Duplication)
-    println(search_for_non_diploid(pass5)) // (0, 1, Deletion)
-
-    println(" Fail: ")
-    val fail1 = List("Deletion", "Duplication", "Diploid", "Diploid", "Diploid", "Diploid") // Multiple states
-    val fail2 = List("Deletion", "Diploid", "Deletion", "Diploid", "Diploid", "Diploid")    // Multiple breaks
-    val fail3 = List("Diploid", "Duplication", "Duplication", "Deletion", "Diploid", "Diploid") // Multiple states
-    val fail4 = List("Diploid", "Duplication", "Diploid", "Duplication", "Diploid", "Diploid") // Multiple breaks
-    val fail5 = List("Duplication", "Duplication", "Diploid", "Duplication", "Diploid", "Duplication")
-
-    println(search_for_non_diploid(fail1)) // Multiple states
-    println(search_for_non_diploid(fail2)) // Multiple breaks
-    println(search_for_non_diploid(fail3)) // Multiple states
-    println(search_for_non_diploid(fail4)) // Multiple breaks
-    println(search_for_non_diploid(fail5)) // Multiple breaks
-
-    println(" Normal: ")
-    val normal = List("Diploid", "Diploid", "Diploid", "Diploid", "Diploid")
-    println(search_for_non_diploid(normal))
+    val test = new DenseMatrix[Double](3,3, Array[Double](1,4,6,2,5,7,3,6,9))
+    convert_to_sample_array(test)
   }
 }
