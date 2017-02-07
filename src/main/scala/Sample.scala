@@ -1,5 +1,9 @@
 /**
-  * Created by joey on 1/29/17.
+  * Created by davinchia on 1/29/17.
+  *
+  * Sample class is a container for each of the parallelised samples.
+  * Use this to run XHMM in parallel.
+  *
   */
 class Sample(val observations: Array[Double], val len: Int) extends Serializable {
   var emissions   : Array[Array[BigDecimal]] = Array[Array[BigDecimal]]()  //[time, state]
